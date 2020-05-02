@@ -14,6 +14,8 @@
 // @include         http*://*.pardus.at/options.php
 // @include         http*://*.pardus.at/logout.php*
 // @include         http*://*.pardus.at/overview_ship.php*
+// @downloadURL     https://github.com/Tro95/Pardus-Quick-Commands/raw/master/pardus_quick_commands.user.js
+// @updateURL       https://github.com/Tro95/Pardus-Quick-Commands/raw/master/pardus_quick_commands.meta.js
 // @require         https://raw.githubusercontent.com/Tro95/Pardus-Options-Library/v2.2/pardus_options_library.js
 // @require         /pages/options.js
 // @grant           GM_setValue
