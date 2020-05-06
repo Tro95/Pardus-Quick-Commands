@@ -17,7 +17,10 @@
 // @downloadURL     https://github.com/Tro95/Pardus-Quick-Commands/raw/master/pardus_quick_commands.user.js
 // @updateURL       https://github.com/Tro95/Pardus-Quick-Commands/raw/master/pardus_quick_commands.meta.js
 // @require         https://raw.githubusercontent.com/Tro95/Pardus-Options-Library/v2.2/pardus_options_library.js
-// @require         /pages/options.js
+// @require         ./pages/options.js
+// @require         ./pages/main.js
+// @require         ./pages/msgframe.js
+// @require         ./utility/mapper.js
 // @grant           GM_setValue
 // @grant           GM_getValue
 //

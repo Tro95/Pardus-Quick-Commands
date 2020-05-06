@@ -1,9 +1,10 @@
 /* env greasemonkey, es6 */
+/* global QuickCommandsMapper, PardusOptionsUtility */
 
 class QuickCommandsMainPageStatusBox {
     static run() {
         this.addSectorMapLink();
-        this.addCoordsMapLink();
+        //this.addCoordsMapLink();
     }
 
     static addSectorMapLink() {
@@ -23,11 +24,140 @@ class QuickCommandsMainPageStatusBox {
         coords_a.href = QuickCommandsMapper.getSectorUrl(coords_spam.innerHTML);
         coords_a.target = '_blank';
         coords_a.appendChild(coords_spam);
-        parent_node.appendChild(coords_a);        
+        parent_node.appendChild(coords_a);
     }
 
     static addCheckClusterProtection() {
 
+    }
+}
+
+class QuickCommandsMainPageCommandsBox {
+    static run() {
+        const container = document.createElement('div');
+        container.setAttribute('style', 'position:relative; top:6px; margin-top: 5px; margin-bottom: 7px;');
+        
+        if (document.getElementById('aCmdPlanet')) {
+            this.addPlanetLinks(container);
+        }
+
+        if (document.getElementById('aCmdStarbase')) {
+            this.addStarbaseLinks(container);
+        }
+
+        // Make sure there's something to display
+        if (container.innerHTML !== '') {
+            document.getElementById('commands_content').insertBefore(container, document.querySelector('#commands_content div').nextSibling);
+        }
+    }
+
+    static addPlanetLinks(container) {
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_ship_equipment'), true)) {
+            container.innerHTML += '<a href="ship_equipment.php">Ship Equipment</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_planet_or_sb'), true)) {
+            container.innerHTML += '<a href="planet_trade.php">Trade with planet</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_bulletin_board'), true)) {
+            container.innerHTML += '<a href="bulletin_board.php">Bulletin Board</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_bounty_board'), true)) {
+            container.innerHTML += '<a href="bounties.php">Bounty Board</a><br>';
+        }
+
+        // Insert a clean break
+        if ((
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_ship_equipment'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_planet_or_sb'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_bulletin_board'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_bounty_board'), true)
+        ) && (
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_shipyard'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_blackmarket'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_hack_faction_database'), true)
+        )) {
+            container.innerHTML += '<br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_shipyard'), true)) {
+            container.innerHTML += '<a href="shipyard.php">Shipyard</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_blackmarket'), true)) {
+            container.innerHTML += '<a href="blackmarket.php">Black Market</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_hack_faction_database'), true)) {
+            container.innerHTML += '<a href="hack.php">Hack faction database</a><br>';
+        }
+    }
+
+    static addStarbaseLinks(container) {
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_ship_equipment'), true)) {
+            container.innerHTML += '<a href="ship_equipment.php">Ship Equipment</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_planet_or_sb'), true)) {
+            container.innerHTML += '<a href="planet_trade.php">Trade with starbase</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_bulletin_board'), true)) {
+            container.innerHTML += '<a href="bulletin_board.php">Bulletin Board</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_bounty_board'), true)) {
+            container.innerHTML += '<a href="bounties.php">Bounty Board</a><br>';
+        }
+
+        // Insert a clean break
+        if ((
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_ship_equipment'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_planet_or_sb'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_bulletin_board'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_bounty_board'), true)
+        ) && (
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_shipyard'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_blackmarket'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_hack_faction_database'), true) ||
+            GM_getValue(PardusOptionsUtility.getVariableName('enable_transfer_credits'), true)
+        )) {
+            container.innerHTML += '<br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_shipyard'), true)) {
+            container.innerHTML += '<a href="shipyard.php">Shipyard</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_blackmarket'), true)) {
+            container.innerHTML += '<a href="blackmarket.php">Black Market</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_hack_faction_database'), true)) {
+            container.innerHTML += '<a href="hack.php">Hack faction database</a><br>';
+        }
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_transfer_credits'), true)) {
+            container.innerHTML += '<a href="hack.php">Transfer Credits</a><br>';
+        }
+    }
+
+    static addBuildingLinks(container) {
+        const building_image = document.querySelector('#stdCommand img').src;
+
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_building'), true)) {
+            container.innerHTML += '<a href="building_trade.php">Trade</a><br>';
+        }
+        
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_hack_building'), true)) {
+            container.innerHTML += '<a href="hack.php">Hack information</a><br>';
+        }
+        
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_recharge_shield'), true) && building_image.split('/')[building_image.split('/').length - 1] == 'energy_well.png') {
+            container.innerHTML += '<a href="energy_well.php">Recharge shield</a><br>';
+        }
     }
 }
 
@@ -38,6 +168,7 @@ class QuickCommandsMainPage {
 
     static statusBox() {
         QuickCommandsMainPageStatusBox.run();
+        QuickCommandsMainPageCommandsBox.run();
     }
 }
 
@@ -87,8 +218,9 @@ class QuickCommandsMainPage {
             do_updateStatus();
         }
     }
-
+*/
 //updateCmd
+/*
     function do_updateCmd(){
         for(var i = 0; i < document.getElementById("commands_content").getElementsByTagName('a').length; i++)
         {

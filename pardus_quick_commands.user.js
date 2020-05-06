@@ -19,6 +19,7 @@
 // @require         https://raw.githubusercontent.com/Tro95/Pardus-Options-Library/v2.2/pardus_options_library.js
 // @require         ./pages/options.js
 // @require         ./pages/main.js
+// @require         ./pages/msgframe.js
 // @require         ./utility/mapper.js
 // @grant           GM_setValue
 // @grant           GM_getValue
@@ -32,6 +33,10 @@ switch (document.location.pathname) {
     }
     case '/main.php': {
         QuickCommandsMainPage.run();
+        break;
+    }
+    case '/msgframe.php': {
+        QuickCommandsMsgFramePage.run();
         break;
     }
 }
@@ -752,77 +757,6 @@ if(location.pathname.search(/overview_stats.php/i) != -1)
 // add to Message frame
 if(location.pathname.search(/msgframe.php/i) != -1)
 {
-msgframe = document;
-  var img = document.getElementsByTagName('img');
-
-  if(enableAccountName)
-  {
-    var child = document.createElement('span');
-    child.innerHTML = ' ' + getUserName();
-    img[0].parentNode.insertBefore(child,img[0].nextSibling);
-  }
-  if(enableEditProfile)
-  {
-    for(var i = 0; i < document.links.length; i++)
-    {
-      var a = document.links[i];
-
-      if(a.getAttribute('href').search(/logout/i) != -1)
-      {
-        var child = document.createElement('span');
-        child.innerHTML = child.innerHTML + "<a href='profile.php?action=edit&userid=" + getUserId() + "' target='main'>Edit Profile</a> | ";
-        i++;
-        a.parentNode.insertBefore(child,a);
-      }
-    }
-  }
-
-  var table = document.getElementsByTagName('table');
-  var e = table[0].firstChild.firstChild.childNodes[3].firstChild;
-
-  if(getUniverseName() == 'artemis' && (artemisCustomLinks.length>0))
-  {
-    var child = document.createElement('div');
-    child.innerHTML = '&nbsp';
-    for(var i = 0;i<artemisCustomLinks.length;i++){
-        var link = artemisCustomLinks[i] ;
-        var name = artemisCustomLinkNames[i];
-        child.innerHTML+='<a href="' + link + '" target="_blank">' + name + '</a>&nbsp;|&nbsp;';
-    }
-    if(child.innerHTML.lastIndexOf('&nbsp;|&nbsp;')>=0){
-        child.innerHTML=child.innerHTML.substring(0,child.innerHTML.lastIndexOf('&nbsp;|&nbsp;'))
-    }
-    e.appendChild(child);
-  }
-  if(getUniverseName() == 'orion' && (orionCustomLinks.length > 0))
-  {
-  
-  var child = document.createElement('div');
-    child.innerHTML = '&nbsp';
-    for(var i = 0;i<orionCustomLinks.length;i++){
-        var link = orionCustomLinks[i] ;
-        var name = orionCustomLinkNames[i];
-        child.innerHTML+='<a href="' + link + '" target="_blank">' + name + '</a>&nbsp;|&nbsp;';
-    }
-    if(child.innerHTML.lastIndexOf('&nbsp;|&nbsp;')>=0){
-        child.innerHTML=child.innerHTML.substring(0,child.innerHTML.lastIndexOf('&nbsp;|&nbsp;'))
-    }
-    e.appendChild(child);
-  }
-  if(getUniverseName() == 'pegasus' && (pegasusCustomLinks.length>0))
-  {
-    var child = document.createElement('div');
-    child.innerHTML = '&nbsp';
-    for(var i = 0;i<pegasusCustomLinks.length;i++){
-        var link = pegasusCustomLinks[i] ;
-        var name = pegasusCustomLinkNames[i];
-        child.innerHTML+='<a href="' + link + '" target="_blank">' + name + '</a>&nbsp;|&nbsp;';
-    }
-    if(child.innerHTML.lastIndexOf('&nbsp;|&nbsp;')>=0){
-        child.innerHTML=child.innerHTML.substring(0,child.innerHTML.lastIndexOf('&nbsp;|&nbsp;'))
-    }
-    e.appendChild(child);
-  }
 
 }
 
