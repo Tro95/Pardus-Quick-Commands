@@ -3,28 +3,56 @@
 
 class QuickCommandsMainPageStatusBox {
     static run() {
-        this.addSectorMapLink();
-        //this.addCoordsMapLink();
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_sector_map_link'), true)) {
+            this.addSectorMapLink();
+            this.addCoordsMapLink();
+        }
     }
 
     static addSectorMapLink() {
         const sector_span = document.getElementById('sector');
         const parent_node = sector_span.parentNode;
-        const sector_a = document.createElement('a');
+
+        let sector_a = document.getElementById('quickcommands-sector-map-link');
+        let recreate = false;
+
+        if (!sector_a) {
+            recreate = true;
+
+            sector_a = document.createElement('a');
+            sector_a.setAttribute('id', 'quickcommands-sector-map-link');
+        }
+
         sector_a.href = QuickCommandsMapper.getSectorUrl(sector_span.innerHTML);
         sector_a.target = '_blank';
-        sector_a.appendChild(sector_span);
-        parent_node.appendChild(sector_a);
+    
+        if (recreate) {
+            sector_a.appendChild(sector_span);
+            parent_node.appendChild(sector_a);
+        }
     }
 
     static addCoordsMapLink() {
-        const coords_spam = document.getElementById('coords');
-        const parent_node = coords_spam.parentNode;
-        const coords_a = document.createElement('a');
-        coords_a.href = QuickCommandsMapper.getSectorUrl(coords_spam.innerHTML);
+        const coords_span = document.getElementById('coords');
+        const parent_node = coords_span.parentNode;
+
+        let coords_a = document.getElementById('quickcommands-coords-map-link');
+        let recreate = false;
+
+        if (!coords_a) {
+            recreate = true;
+
+            coords_a = document.createElement('a');
+            coords_a.setAttribute('id', 'quickcommands-coords-map-link');
+        }
+
+        coords_a.href = QuickCommandsMapper.getSectorUrl(document.getElementById('sector').innerHTML);
         coords_a.target = '_blank';
-        coords_a.appendChild(coords_spam);
-        parent_node.appendChild(coords_a);
+
+        if (recreate) {
+            coords_a.appendChild(coords_span);
+            parent_node.appendChild(coords_a);
+        }
     }
 
     static addCheckClusterProtection() {
@@ -34,20 +62,25 @@ class QuickCommandsMainPageStatusBox {
 
 class QuickCommandsMainPageCommandsBox {
     static run() {
-        const container = document.createElement('div');
-        container.setAttribute('style', 'position:relative; top:6px; margin-top: 5px; margin-bottom: 7px;');
-        
-        if (document.getElementById('aCmdPlanet')) {
-            this.addPlanetLinks(container);
-        }
+        let container = document.getElementById('quickcommands-commands');
 
-        if (document.getElementById('aCmdStarbase')) {
-            this.addStarbaseLinks(container);
-        }
+        if (!container) {
+            container = document.createElement('div');
+            container.setAttribute('id', 'quickcommands-commands');
+            container.setAttribute('style', 'position:relative; top:6px; margin-top: 5px; margin-bottom: 7px;');
 
-        // Make sure there's something to display
-        if (container.innerHTML !== '') {
-            document.getElementById('commands_content').insertBefore(container, document.querySelector('#commands_content div').nextSibling);
+            if (document.getElementById('aCmdPlanet')) {
+                this.addPlanetLinks(container);
+            }
+
+            if (document.getElementById('aCmdStarbase')) {
+                this.addStarbaseLinks(container);
+            }
+
+            // Make sure there's something to display
+            if (container.innerHTML !== '') {
+                document.getElementById('commands_content').insertBefore(container, document.querySelector('#commands_content div').nextSibling);
+            }
         }
     }
 
@@ -161,129 +194,179 @@ class QuickCommandsMainPageCommandsBox {
     }
 }
 
+class QuickCommandsMainPageOtherShips {
+    static run() {
+        this.addShipLinks();
+    }
+
+    static addPlayerLink(player, player_id) {
+        const player_name = player.innerHTML.replace("<font color=", "").replace("</font>", "").replace('"#bb0000"',"").replace('"#BB0000"',"").replace('"#FFCC00"',"").replace(">", "");
+
+        let alliance_name = '';
+
+        let container = document.getElementById(`quickcommands-player-link-${player_id}`);
+        let recreate = false;
+
+        if (!container) {
+            recreate = true;
+        }
+
+        if (recreate) {
+            if (player.nextSibling && player.nextSibling.nextSibling.firstChild.firstChild) {
+                alliance_name = player.nextSibling.nextSibling.firstChild.firstChild.innerHTML.replace('<font color="#a1a1af">', '').replace('</font>', '');
+            }
+
+            container = document.createElement('font');
+            container.setAttribute('id', `quickcommands-player-link-${player_id}`);
+            container.setAttribute('size', '1');
+
+            const player_options = [];
+            const alliance_options = [];
+
+            if (GM_getValue(PardusOptionsUtility.getVariableName('enable_player_message'), true)) {
+                player_options.push(`<a href='javascript:sendmsg("${player_name}");'>Msg</a>`);
+            }
+
+            if (GM_getValue(PardusOptionsUtility.getVariableName('enable_player_trade'), true)) {
+                player_options.push(`<a href='ship2ship_transfer.php?playerid=${player_id}'>Trade</a>`);
+            }
+
+            if (GM_getValue(PardusOptionsUtility.getVariableName('enable_player_attack'), true) && !(
+                    document.getElementById('aCmdPlanet') || document.getElementById('aCmdStarbase')
+                )) {
+                player_options.push(`<a href='ship2ship_combat.php?playerid=${player_id}'>Attack</a>`);
+            }
+
+            if (GM_getValue(PardusOptionsUtility.getVariableName('enable_player_news'), true)) {
+                alliance_options.push(`<a href='news.php?s=${player_name}&searchtype=pilot&search=Search' target='_blank'>News</a>`);
+            }
+
+            if (GM_getValue(PardusOptionsUtility.getVariableName('enable_alliance_news'), true) && alliance_name != 'No alliance participation') {
+                alliance_options.push(`<a href='news.php?s=${alliance_name}&searchtype=alliance&search=Search' target='_blank'>Ally News</a>`);
+            }
+
+            if ((player_options.length > 0 || alliance_options > 0) && player.nextSibling) {
+
+                container.innerHTML += '<br>';
+
+                if (player_options.length > 0) {
+                    container.innerHTML += player_options.join('&nbsp;|&nbsp;');
+                    container.innerHTML += '<br>';
+                }
+
+                if (alliance_options.length > 0) {
+                    container.innerHTML += alliance_options.join('&nbsp;|&nbsp;');
+                    container.innerHTML += '<br>';
+                }
+
+                player.parentNode.insertBefore(container, player.nextSibling.nextSibling.nextSibling);
+            }
+        }
+    }
+
+    static addSquadLink(squad, squad_id) {
+
+        let container = document.getElementById(`quickcommands-squad-link-${squad_id}`);
+        let recreate = false;
+
+        if (!container) {
+            recreate = true;
+        }
+
+        if (recreate) {
+            container = document.createElement('font');
+            container.setAttribute('id', `quickcommands-squad-link-${squad_id}`);
+            container.setAttribute('size', '1');
+
+            const squad_options = [];
+
+            if (GM_getValue(PardusOptionsUtility.getVariableName('enable_squad_command'), true)) {
+                squad_options.push(`<a href='squad_main.php?squadid=${squad_id}'>Command</a>`);
+            }
+
+            if (GM_getValue(PardusOptionsUtility.getVariableName('enable_squad_supply'), true)) {
+                squad_options.push(`<a href='supply_squad.php?squadid=${squad_id}'>Supply</a>`);
+            }
+
+            if (squad_options.length > 0) {
+                container.innerHTML += '<br>';
+                container.innerHTML += squad_options.join('&nbsp;|&nbsp;');
+                container.innerHTML += '<br>';
+                squad.parentNode.appendChild(container);
+            }
+        }
+    }
+
+    static addShipLinks() {
+        const otherships_content = document.getElementById('otherships_content');
+        const ship_links = otherships_content.getElementsByTagName('a');
+
+        for (const ship of ship_links) {
+
+            let regex = /main\.php\?scan_details=(\d*)&scan_type=(player|squadron)/;
+
+            if (ship.getAttribute('href').search(/main.php[?]scan_details/i) == -1) {
+                if (ship.getAttribute('href').search(/javascript:scanid/i) == -1) {
+                    continue;
+                }
+
+                regex = /javascript:scanId\((\d*), \"(player|squadron)\"\)/;
+            }
+
+            const match = ship.getAttribute('href').match(regex);
+
+            if (match) {
+                const ship_id = match[1];
+                const ship_type = match[2];
+
+                switch (ship_type) {
+                    case 'player':
+                        this.addPlayerLink(ship, ship_id);
+                        break;
+                    case 'squadron':
+                        this.addSquadLink(ship, ship_id);
+                        break;
+                    default:
+                        console.log(`No handling found for ship type '${ship_type}'`);
+                }
+            }
+        }
+    }
+}
+
 class QuickCommandsMainPage {
     static run() {
+        this.handlePartialRefresh();
         this.statusBox();
+    }
+
+    static handlePartialRefresh() {
+        const navElement = document.getElementById('tdSpaceChart').getElementsByTagName('table')[0];
+
+        // Options for the observer (which mutations to observe)
+        const config = { attributes: false, childList: true, subtree: true };
+
+        // Callback function to execute when mutations are observed
+        const callback = function(mutationsList, observer) {
+            QuickCommandsMainPage.statusBox();
+        };
+
+        // Create an observer instance linked to the callback function
+        const observer = new MutationObserver(callback);
+
+        // Start observing the target node for configured mutations
+        observer.observe(navElement, config);
     }
 
     static statusBox() {
         QuickCommandsMainPageStatusBox.run();
         QuickCommandsMainPageCommandsBox.run();
+        QuickCommandsMainPageOtherShips.run();
     }
 }
 
 /*
 
-
-
-    mainframe = document;
-
-    //updateStatus
-    function do_updateStatus(){
-        if(enableMap){
-            var img = document.getElementsByTagName('img');
-
-            for(var i = 0; i < img.length; i++){
-                if(img[i].getAttribute('title') == 'Action Points'){
-                    img[i].parentNode.previousSibling.previousSibling.previousSibling.innerHTML = '<a href="overview_map.php">' + img[i].parentNode.previousSibling.previousSibling.previousSibling.innerHTML + '</a>';
-                    break;
-              }
-            }
-        }
-        
-        
-        for(var i = 0; i < document.getElementById("status_content").getElementsByTagName('a').length; i++)
-        {
-            var a = document.getElementById("status_content").getElementsByTagName('a')[i]
-        
-            if((a.getAttribute('href').search(/main.php[?]ccp=1/i) != -1 || a.getAttribute('href').indexOf("clusterprot()") != -1 )&& a.innerHTML.indexOf('class="nf"') == -1 && a.innerHTML.indexOf("class='nf'") == -1)
-            {
-                var child = document.createElement("div");
-                child.setAttribute("style", "position:relative; top:6px; margin-left: 12px; margin-top: 5px; margin-bottom: 7px;");
-                if(enableStats)  child.innerHTML = child.innerHTML + "<a href='overview_stats.php'>Stats</a>";
-                if(enableStats && (enableJobs || enableBuildings))  child.innerHTML = child.innerHTML + "&nbsp;&nbsp;|&nbsp;&nbsp;";
-                if(enableJobs)  child.innerHTML = child.innerHTML + "<a href='overview_jobs.php'>Jobs</a>";
-                if(enableJobs && enableBuildings)  child.innerHTML = child.innerHTML + "&nbsp;&nbsp;|&nbsp;&nbsp;";
-                if(enableBuildings)  child.innerHTML = child.innerHTML + "<a href='overview_buildings.php'>Buildings</a>";
-                if((enableStats || enableJobs || enableBuildings) && a.nextSibling)  a.parentNode.insertBefore(child,a.nextSibling);
-            }
-        }
-    }
-    
-    do_updateStatus();
-    var local_updateStatus = unsafeWindow.updateStatus;
-    if(local_updateStatus){
-        unsafeWindow.updateStatus = function(result){
-            local_updateStatus(result);
-            do_updateStatus();
-        }
-    }
-*/
-//updateCmd
-/*
-    function do_updateCmd(){
-        for(var i = 0; i < document.getElementById("commands_content").getElementsByTagName('a').length; i++)
-        {
-            var a = document.getElementById("commands_content").getElementsByTagName('a')[i]
-            
-            if(a.getAttribute('href').search(/planet.php/i) != -1 && a.innerHTML.indexOf('class="nf"') == -1 && a.innerHTML.indexOf("class='nf'") == -1)
-            {
-                var child = document.createElement("div");
-                child.setAttribute("style", "position:relative; top:6px; margin-top: 5px; margin-bottom: 7px;");
-                if(enableShipEquipment)  child.innerHTML = child.innerHTML + "<a href='ship_equipment.php'>Ship Equipment</a><br>";
-                if(enableTradeWithPlanetOrStarbase)  child.innerHTML = child.innerHTML + "<a href='planet_trade.php'>Trade with planet</a><br>";
-                if(enableBulletinBoard)  child.innerHTML = child.innerHTML + "<a href='bulletin_board.php'>Bulletin Board</a><br>";
-                if(enableBountyBoard)  child.innerHTML = child.innerHTML + "<a href='bounties.php'>Bounty Board</a><br>";
-                if((enableShipEquipment || enableTradeWithPlanetOrStarbase || enableBulletinBoard || enableBountyBoard) && (enableShipYard || enableTradeWithBlackMarket || enableHackFactionDatabase))  child.innerHTML = child.innerHTML + "<br>";
-                if(enableShipYard)  child.innerHTML = child.innerHTML + "<a href='shipyard.php'>Shipyard</a><br>";
-                if(enableTradeWithBlackMarket)  child.innerHTML = child.innerHTML + "<a href='blackmarket.php'>Black Market</a><br>";
-                if(enableHackFactionDatabase)  child.innerHTML = child.innerHTML + "<a href='hack.php'>Hack faction database</a><br>";
-                if(enableShipEquipment || enableTradeWithPlanetOrStarbase || enableBulletinBoard || enableBountyBoard || enableShipYard || enableTradeWithBlackMarket || enableHackFactionDatabase)  a.parentNode.insertBefore(child,a.nextSibling);
-                if(enableDeliverToPlanetOrStarbase)  a.innerHTML = "<b>Land on/Deliver to planet</b>"; 
-            }
-            if(a.getAttribute('href').search(/starbase.php/i) != -1 && a.innerHTML.indexOf('class="nf"') == -1 && a.innerHTML.indexOf("class='nf'") == -1)
-            {
-                var child = document.createElement("div");
-                child.setAttribute("style", "position:relative; top:6px; margin-top: 5px; margin-bottom: 7px;");
-                if(enableShipEquipment)  child.innerHTML = child.innerHTML + "<a href='ship_equipment.php'>Ship Equipment</a><br>";
-                if(enableTradeWithPlanetOrStarbase)  child.innerHTML = child.innerHTML + "<a href='starbase_trade.php'>Trade with starbase</a><br>";
-                if(enableBulletinBoard)  child.innerHTML = child.innerHTML + "<a href='bulletin_board.php'>Bulletin Board</a><br>";
-                if(enableBountyBoard)  child.innerHTML = child.innerHTML + "<a href='bounties.php'>Bounty Board</a><br>";
-                if((enableShipEquipment || enableTradeWithPlanetOrStarbase || enableBulletinBoard || enableBountyBoard) && (enableShipYard || enableTradeWithBlackMarket || enableHackFactionDatabase || enableTransferCredits))  //child.innerHTML = child.innerHTML + "<br>";
-                if(enableShipYard)  child.innerHTML = child.innerHTML + "<a href='shipyard.php'>Shipyard</a><br>";
-                if(enableTradeWithBlackMarket)  child.innerHTML = child.innerHTML + "<a href='blackmarket.php'>Black Market</a><br>";
-                if(enableHackFactionDatabase)  child.innerHTML = child.innerHTML + "<a href='hack.php'>Hack faction database</a><br>";
-                if(enableTransferCredits) child.innerHTML = child.innerHTML + "<a href='starbase_credits.php'>Transfer Credits</a><br>";
-                if(enableShipEquipment || enableTradeWithPlanetOrStarbase || enableBulletinBoard || enableBountyBoard || enableShipYard || enableTradeWithBlackMarket || enableHackFactionDatabase || enableTransferCredits)  a.parentNode.insertBefore(child,a.nextSibling);
-                if(enableDeliverToPlanetOrStarbase)  a.innerHTML = "<b>Land on/Deliver to starbase</b>"; 
-            }
-            if(a.getAttribute('href').search(/building.php/i) != -1 && a.getAttribute('href').search(/newbuilding.php/i) == -1 && a.innerHTML.indexOf('class="nf"') == -1 && a.innerHTML.indexOf("class='nf'") == -1)
-            {
-                var child = document.createElement("div");
-                child.setAttribute("style", "position:relative; top:6px; margin-top: 5px; margin-bottom: 7px;");
-                if(enableTradeWithBuilding)  child.innerHTML = child.innerHTML + "<a href='building_trade.php'>Trade with building</a><br>";
-                if(enableHackInformation)  child.innerHTML = child.innerHTML + "<a href='hack.php'>Hack information</a><br>";
-                if(enableRechargeShield && getLocName() == 'Energy Well') child.innerHTML = child.innerHTML + "<a href='energy_well.php'>Recharge shield</a><br>";
-                if(enableTradeWithBuilding || enableHackInformation || enableRechargeShield)  a.parentNode.insertBefore(child,a.nextSibling);
-            }
-            if(a.getAttribute('href').search(/building_management.php/i) != -1 && a.innerHTML.indexOf('class="nf"') == -1 && a.innerHTML.indexOf("class='nf'") == -1)
-            {
-                var child = document.createElement("div");
-                child.setAttribute("style", "position:relative; top:6px; margin-top: 5px; margin-bottom: 7px;");
-                if(enableBuildingTradeSettings)  child.innerHTML = child.innerHTML + "<a href='building_trade_settings.php'>Building trade settings</a><br>";
-                if(enableBuildingTradeSettings)  a.parentNode.insertBefore(child,a.nextSibling);
-            }
-        }
-    }
-    
-    do_updateCmd();
-    var local_updateCmd = unsafeWindow.updateCmd;
-    if(local_updateCmd){
-        unsafeWindow.updateCmd = function(result){
-            local_updateCmd(result);
-            do_updateCmd();
-        }
-    }
 //updateShip
     var shipCookie = readCookie('ship');
     if(shipCookie != null)  shipCookie = shipCookie.split("|");
@@ -315,43 +398,4 @@ class QuickCommandsMainPage {
         }
     }
 
-//updateShips
-    function do_updateShips(){
-        for(var i = 0; i < document.getElementById("otherships_content").getElementsByTagName('a').length; i++)
-        {
-            var a = document.getElementById("otherships_content").getElementsByTagName('a')[i]
-            
-            if((a.getAttribute('href').search(/main.php[?]scan_details/i) != -1 || a.getAttribute('href').indexOf("scanId(") != -1) && a.innerHTML.indexOf('class="nf"') == -1 && a.innerHTML.indexOf("class='nf'") == -1)
-            {
-                var playerid = a.getAttribute('href').replace("main.php?scan_details=", "").replace("&scan_type=player", "").replace("javascript:scanId(","").replace(', "player")',"");
-                var playername = a.innerHTML.replace("<font color=", "").replace("</font>", "").replace('"#bb0000"',"").replace('"#BB0000"',"").replace('"#FFCC00"',"").replace(">", "");
-                var alliancename = 'No alliance participation';
-                if(a.nextSibling && a.nextSibling.nextSibling.firstChild.firstChild)  alliancename = a.nextSibling.nextSibling.firstChild.firstChild.innerHTML.replace('<font color="#a1a1af">', '').replace('</font>', '');
-                var child = document.createElement("font");
-                child.setAttribute("size", "1");
-                if(enablePlayerMsg || enablePlayerTrade || enablePlayerAttack)
-                    child.innerHTML = child.innerHTML + "<br>";
-                if(enablePlayerMsg)  child.innerHTML = child.innerHTML + "<a href='javascript:sendmsg(\"" + playername + "\");'>Msg</a>";
-                if(enablePlayerMsg && (enablePlayerTrade || enablePlayerAttack))  child.innerHTML = child.innerHTML + "&nbsp;|&nbsp;";
-                if(enablePlayerTrade)  child.innerHTML = child.innerHTML + "<a href='ship2ship_transfer.php?playerid=" + playerid + "'>Trade</a>";
-                if(enablePlayerTrade && enablePlayerAttack && getLocName() != "Planet" && getLocName() != "Starbase")  child.innerHTML = child.innerHTML + "&nbsp;|&nbsp;";
-                if(enablePlayerAttack && getLocName() != "Planet" && getLocName() != "Starbase") child.innerHTML = child.innerHTML + "<a href='ship2ship_combat.php?playerid=" + playerid + "'>Attack</a>";
-                if(enablePlayerNews || enableAllianceNews)  child.innerHTML = child.innerHTML + "<br>";
-                if(enablePlayerNews)  child.innerHTML = child.innerHTML + "<a href='news.php?s=" + playername + "&searchtype=pilot&search=Search' target='_blank'>News</a>";
-                if(enablePlayerNews && enableAllianceNews && alliancename != 'No alliance participation')  child.innerHTML = child.innerHTML + "&nbsp;|&nbsp;";
-                if(enableAllianceNews && alliancename != 'No alliance participation')  child.innerHTML = child.innerHTML + "<a href='news.php?s=" + alliancename + "&searchtype=alliance&search=Search' target='_blank'>Ally News</a>";
-                if(enablePlayerMsg || enablePlayerTrade || enablePlayerAttack || enablePlayerNews || enableAllianceNews)   child.innerHTML = child.innerHTML + "<br>";
-                if((enablePlayerMsg || enablePlayerTrade || enablePlayerAttack || enablePlayerNews || enableAllianceNews) && a.nextSibling)  a.parentNode.insertBefore(child,a.nextSibling.nextSibling.nextSibling);
-            }
-        }
-    }
-    
-    do_updateShips();
-    var local_updateShips = unsafeWindow.updateShips;
-    if(local_updateShips){
-        unsafeWindow.updateShips = function(result){
-            local_updateShips(result);
-            do_updateShips();
-        }
-    }
 */

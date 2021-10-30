@@ -32,77 +32,24 @@ class QuickCommandsMsgFramePage {
     static addCustomLinks() {
         const target_element = document.querySelector('td[align="right"] b');
         const container = document.createElement('div');
-        container.innerHTML = '&nbsp';
         const links = [];
         if (GM_getValue(PardusOptionsUtility.getVariableName('enable_mapper_link'), true)) {
-            links.push(`<a href="${QuickCommandsMapper.getUniverseUrl()}" target="_blank">Mapper</a>&nbsp`);
+            links.push(`<a href="${QuickCommandsMapper.getUniverseUrl()}" target="_blank">Mapper</a>`);
         }
         if (GM_getValue(PardusOptionsUtility.getVariableName('enable_upgrades_link'), true)) {
-            links.push('<a href="https://www.xcom-alliance.info/buildingtools/building_upgrade.html" target="_blank">Upgrades</a>&nbsp');
+            links.push('<a href="https://www.xcom-alliance.info/buildingtools/building_upgrade.html" target="_blank">Upgrades</a>');
         }
         if (GM_getValue(PardusOptionsUtility.getVariableName('enable_maxes_link'), true)) {
-            links.push('<a href="https://www.xcom-alliance.info/buildingtools/maxes/" target="_blank">Maxes</a>&nbsp');
+            links.push('<a href="https://www.xcom-alliance.info/buildingtools/maxes/" target="_blank">Maxes</a>');
         }
         if (GM_getValue(PardusOptionsUtility.getVariableName('enable_ap_calculator_link'), true)) {
-            links.push('<a href="https://web.cs.elte.hu/~terpai/tcc_alt.html" target="_blank">AP Calculator</a>&nbsp');
+            links.push('<a href="https://tro.xcom-alliance.info/path_calculator.html" target="_blank">AP Calculator</a>');
         }
         if (GM_getValue(PardusOptionsUtility.getVariableName('enable_fsc_link'), true)) {
-            links.push('<a href="https://www.xcom-alliance.info/fsc/" target="_blank">FSC</a>&nbsp');
+            links.push('<a href="https://www.xcom-alliance.info/fsc/" target="_blank">FSC</a>');
         }
 
         container.innerHTML = links.join('&nbsp;|&nbsp;');
         target_element.appendChild(container);
     }
 }
-
-/*
-
-msgframe = document;
-  var img = document.getElementsByTagName('img');
-
-  var table = document.getElementsByTagName('table');
-  var e = table[0].firstChild.firstChild.childNodes[3].firstChild;
-
-  if(getUniverseName() == 'artemis' && (artemisCustomLinks.length>0))
-  {
-    var child = document.createElement('div');
-    child.innerHTML = '&nbsp';
-    for(var i = 0;i<artemisCustomLinks.length;i++){
-        var link = artemisCustomLinks[i] ;
-        var name = artemisCustomLinkNames[i];
-        child.innerHTML+='<a href="' + link + '" target="_blank">' + name + '</a>&nbsp;|&nbsp;';
-    }
-    if(child.innerHTML.lastIndexOf('&nbsp;|&nbsp;')>=0){
-        child.innerHTML=child.innerHTML.substring(0,child.innerHTML.lastIndexOf('&nbsp;|&nbsp;'))
-    }
-    e.appendChild(child);
-  }
-  if(getUniverseName() == 'orion' && (orionCustomLinks.length > 0))
-  {
-  
-  var child = document.createElement('div');
-    child.innerHTML = '&nbsp';
-    for(var i = 0;i<orionCustomLinks.length;i++){
-        var link = orionCustomLinks[i] ;
-        var name = orionCustomLinkNames[i];
-        child.innerHTML+='<a href="' + link + '" target="_blank">' + name + '</a>&nbsp;|&nbsp;';
-    }
-    if(child.innerHTML.lastIndexOf('&nbsp;|&nbsp;')>=0){
-        child.innerHTML=child.innerHTML.substring(0,child.innerHTML.lastIndexOf('&nbsp;|&nbsp;'))
-    }
-    e.appendChild(child);
-  }
-  if(getUniverseName() == 'pegasus' && (pegasusCustomLinks.length>0))
-  {
-    var child = document.createElement('div');
-    child.innerHTML = '&nbsp';
-    for(var i = 0;i<pegasusCustomLinks.length;i++){
-        var link = pegasusCustomLinks[i] ;
-        var name = pegasusCustomLinkNames[i];
-        child.innerHTML+='<a href="' + link + '" target="_blank">' + name + '</a>&nbsp;|&nbsp;';
-    }
-    if(child.innerHTML.lastIndexOf('&nbsp;|&nbsp;')>=0){
-        child.innerHTML=child.innerHTML.substring(0,child.innerHTML.lastIndexOf('&nbsp;|&nbsp;'))
-    }
-    e.appendChild(child);
-  }
