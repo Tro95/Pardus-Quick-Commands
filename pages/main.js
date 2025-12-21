@@ -77,6 +77,16 @@ class QuickCommandsMainPageCommandsBox {
                 this.addStarbaseLinks(container);
             }
 
+            document.addPardusKeyDownListener('enter_tradescreen_key', {code: 84}, (event) => {
+                if (document.getElementById('aCmdPlanet')) {
+                    window.location.assign(`${window.location.origin}/planet_trade.php`);
+                } else if (document.getElementById('aCmdStarbase')) {
+                    window.location.assign(`${window.location.origin}/starbase_trade.php`);
+                } else if (document.getElementById('aCmdBuilding')) {
+                    window.location.assign(`${window.location.origin}/building_trade.php`);
+                }
+            });
+
             // Make sure there's something to display
             if (container.innerHTML !== '') {
                 document.getElementById('commands_content').insertBefore(container, document.querySelector('#commands_content div').nextSibling);
@@ -134,7 +144,7 @@ class QuickCommandsMainPageCommandsBox {
         }
 
         if (GM_getValue(PardusOptionsUtility.getVariableName('enable_trade_with_planet_or_sb'), true)) {
-            container.innerHTML += '<a href="planet_trade.php">Trade with starbase</a><br>';
+            container.innerHTML += '<a href="starbase_trade.php">Trade with starbase</a><br>';
         }
 
         if (GM_getValue(PardusOptionsUtility.getVariableName('enable_bulletin_board'), true)) {
@@ -196,7 +206,9 @@ class QuickCommandsMainPageCommandsBox {
 
 class QuickCommandsMainPageOtherShips {
     static run() {
-        this.addShipLinks();
+        if (GM_getValue(PardusOptionsUtility.getVariableName('enable_ship_overview'), true)) {
+            this.addShipLinks();
+        }
     }
 
     static addPlayerLink(player, player_id) {

@@ -108,8 +108,57 @@ class QuickCommandsOptionsPage {
         ship_box.addBooleanOption({
             variable: 'enable_ship_overview',
             description: 'Enable \'Ship Overview\' link',
-            defaultValue: false
+            defaultValue: true
         });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_player_message',
+            description: 'Enable \'Message\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_player_trade',
+            description: 'Enable \'Trade\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_player_attack',
+            description: 'Enable \'Attack\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_player_news',
+            description: 'Enable \'News\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_alliance_news',
+            description: 'Enable \'Alliance News\' link',
+            defaultValue: true
+        });
+
+        /*
+         *  Commands box
+         */
+        const keyboard_options = subtab.addBox({
+            heading: 'Keyboard Options',
+            description: 'These options control the key presses options to quickly perform specific actions.',
+        });
+
+        keyboard_options.addKeyDownOption({
+            variable: 'enter_tradescreen_key',
+            description: 'Enter building/planet/SB trade screen',
+            defaultValue: {
+                code: 84,
+                key: "KeyT",
+                description: "t"
+            },
+        });
+
     }
 
     static description(subtab) {
