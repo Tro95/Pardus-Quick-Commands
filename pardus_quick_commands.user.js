@@ -2,7 +2,7 @@
 // @name            Pardus Quick Commands
 // @namespace       pardus.at
 // @author          Tro (Artemis) / Troll (Orion)
-// @version         3.2
+// @version         3.3
 // @description     Links for frequently used commands are added to the Nav screen for single-click access.
 // @match           http*://*.pardus.at/main.php*
 // @match           http*://*.pardus.at/overview_buildings.php*
@@ -17,10 +17,10 @@
 // @downloadURL     https://github.com/Tro95/Pardus-Quick-Commands/raw/master/pardus_quick_commands.user.js
 // @updateURL       https://github.com/Tro95/Pardus-Quick-Commands/raw/master/pardus_quick_commands.meta.js
 // @require         https://raw.githubusercontent.com/Tro95/Pardus-Options-Library/v2.6.8/dist/pardus-options-library.js
-// @require         https://raw.githubusercontent.com/Tro95/Pardus-Quick-Commands/v3.2/pages/options.js
-// @require         https://raw.githubusercontent.com/Tro95/Pardus-Quick-Commands/v3.2/pages/main.js
-// @require         https://raw.githubusercontent.com/Tro95/Pardus-Quick-Commands/v3.2/pages/msgframe.js
-// @require         https://raw.githubusercontent.com/Tro95/Pardus-Quick-Commands/v3.2/utility/mapper.js
+// @require         https://raw.githubusercontent.com/Tro95/Pardus-Quick-Commands/v3.3/pages/options.js
+// @require         https://raw.githubusercontent.com/Tro95/Pardus-Quick-Commands/v3.3/pages/main.js
+// @require         https://raw.githubusercontent.com/Tro95/Pardus-Quick-Commands/v3.3/pages/msgframe.js
+// @require         https://raw.githubusercontent.com/Tro95/Pardus-Quick-Commands/v3.3/utility/mapper.js
 // @grant           GM_setValue
 // @grant           GM_getValue
 // ==/UserScript==
