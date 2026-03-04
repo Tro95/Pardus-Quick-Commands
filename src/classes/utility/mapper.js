@@ -1,11 +1,11 @@
-/* env greasemonkey, es6 */
-/* global PardusOptionsUtility */
+import { PardusLibrary } from 'pardus-library';
+import { PardusOptionsUtility } from 'pardus-options-library';
 
 String.prototype.capitalize = function() {
     return this.charAt(0).toUpperCase() + this.slice(1);
-}
+};
 
-class QuickCommandsMapper {
+export default class Mapper {
     static getMappers() {
         return [
             {
@@ -46,16 +46,16 @@ class QuickCommandsMapper {
     }
 
     static getMapperToUse() {
-        const mapperToUse = GM_getValue(PardusOptionsUtility.getVariableName('mapper_to_use'), 'zaqwer');
+        const mapperToUse = PardusOptionsUtility.getVariableValue('mapper_to_use', 'zaqwer');
         return this.getMapper(mapperToUse);
     }
 
     static getSectorUrl(sector) {
 
         const mapperSector = this.getMapperToUse().sector
-            .replace(/<universe>/, PardusOptionsUtility.getUniverse().toLowerCase())
-            .replace(/<Universe>/, PardusOptionsUtility.getUniverse().capitalize())
-            .replace(/<UNIVERSE>/, PardusOptionsUtility.getUniverse().toUpperCase())
+            .replace(/<universe>/, PardusLibrary.getUniverse().toLowerCase())
+            .replace(/<Universe>/, PardusLibrary.getUniverse().capitalize())
+            .replace(/<UNIVERSE>/, PardusLibrary.getUniverse().toUpperCase())
             .replace(/<sector>/, sector.toLowerCase())
             .replace(/<Sector>/, sector.capitalize())
             .replace(/<SectorNoSpace>/, sector.capitalize().replace(' ', ''))
@@ -69,7 +69,7 @@ class QuickCommandsMapper {
         }
 
         // Default
-        return `https://pardusmapper.com/${PardusOptionsUtility.getUniverse().capitalize()}/${sector}`;
+        return `https://pardusmapper.com/${PardusLibrary.getUniverse().capitalize()}/${sector}`;
         */
     }
 
@@ -79,11 +79,11 @@ class QuickCommandsMapper {
             return '/overview_map.php?slim=y';
         }
 
-        return `https://pardusmapper.com/${PardusOptionsUtility.getUniverse().capitalize()}/`;*/
+        return `https://pardusmapper.com/${PardusLibrary.getUniverse().capitalize()}/`;*/
         const mapperUniverse = this.getMapperToUse().universe
-            .replace(/<universe>/, PardusOptionsUtility.getUniverse().toLowerCase())
-            .replace(/<Universe>/, PardusOptionsUtility.getUniverse().capitalize())
-            .replace(/<UNIVERSE>/, PardusOptionsUtility.getUniverse().toUpperCase());
+            .replace(/<universe>/, PardusLibrary.getUniverse().toLowerCase())
+            .replace(/<Universe>/, PardusLibrary.getUniverse().capitalize())
+            .replace(/<UNIVERSE>/, PardusLibrary.getUniverse().toUpperCase());
 
         return mapperUniverse;
     }

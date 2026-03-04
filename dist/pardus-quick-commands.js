@@ -1,0 +1,6300 @@
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define([], factory);
+	else if(typeof exports === 'object')
+		exports["PardusQuickCommands"] = factory();
+	else
+		root["PardusQuickCommands"] = factory();
+})(self, () => {
+return /******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	// The require scope
+/******/ 	var __webpack_require__ = {};
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter functions for harmony exports
+/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 			for(var key in definition) {
+/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/************************************************************************/
+var __webpack_exports__ = {};
+
+// EXPORTS
+__webpack_require__.d(__webpack_exports__, {
+  "default": () => (/* binding */ PardusQuickCommands)
+});
+
+;// ./node_modules/pardus-library/src/classes/abstract/abstract-page.js
+class AbstractPage {
+    #page;
+
+    constructor(pageName = '') {
+        if (pageName === '') {
+            throw new Error('Page is not defined for class');
+        }
+
+        this.#page = pageName;
+    }
+
+    toString() {
+        return this.#page;
+    }
+
+    navigateTo() {
+        document.location.assign(`${document.location.origin}${this.#page}`);
+    }
+
+    isActive() {
+        return document.location.pathname === this.#page;
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/abstract/refreshable.js
+class Refreshable {
+    #afterRefreshHooks = [];
+    #beforeRefreshHooks = [];
+
+    refresh() {
+        this.#beforeRefresh();
+        this._reload();
+        this.#afterRefresh();
+    }
+
+    /**
+     * Override in subclasses to re-parse DOM on refresh.
+     */
+    _reload() { }
+
+    /**
+     * Add a hook to run after the element is refreshed
+     * @param {function} func Function to call after the element is refreshed
+     */
+    addAfterRefreshHook(func) {
+        this.#afterRefreshHooks.push(func);
+    }
+
+    /**
+     * Add a hook to run before the element is refreshed
+     * @param {function} func Function to call before the element is refreshed
+     */
+    addBeforeRefreshHook(func) {
+        this.#beforeRefreshHooks.push(func);
+    }
+
+    addMutationObserver(mutationTarget = null, mutationConfiguration = {
+        attributes: false,
+        childList: true,
+        subtree: true,
+    }) {
+        if (!mutationTarget) {
+            throw new Error('No mutationTarget provided!');
+        }
+
+        const observer = new MutationObserver((mutationsList, obs) => {
+            this.mutationCallback(mutationsList, obs);
+        });
+
+        observer.observe(mutationTarget, mutationConfiguration);
+    }
+
+    /**
+     * Override in subclasses to handle mutations.
+     */
+    mutationCallback(mutationsList, observer) {
+        throw new Error('Unhandled mutationCallback');
+    }
+
+    /**
+     * Run all hooks that should be called prior to refreshing the element
+     */
+    #beforeRefresh() {
+        for (const func of this.#beforeRefreshHooks) {
+            func();
+        }
+    }
+
+    /**
+     * Run all hooks that should be called after refreshing the element
+     */
+    #afterRefresh() {
+        for (const func of this.#afterRefreshHooks) {
+            func();
+        }
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/main/tile.js
+/* global userloc */
+
+class Tile {
+    #x;
+    #y;
+    #tileId;
+    #virtualTile;
+    #highlights = new Set();
+    #listenerNonce = new Set();
+
+    static colours = new Map([
+        ['Green', {
+            red: 0,
+            green: 128,
+            blue: 0,
+            shortCode: 'g',
+        }],
+        ['Blue', {
+            red: 0,
+            green: 0,
+            blue: 128,
+            shortCode: 'b',
+        }],
+        ['Red', {
+            red: 128,
+            green: 0,
+            blue: 0,
+            shortCode: 'r',
+        }],
+        ['Yellow', {
+            red: 128,
+            green: 128,
+            blue: 0,
+            shortCode: 'y',
+        }],
+        ['Cyan', {
+            red: 0,
+            green: 128,
+            blue: 128,
+            shortCode: 'c',
+        }],
+        ['Magenta', {
+            red: 128,
+            green: 0,
+            blue: 128,
+            shortCode: 'm',
+        }],
+        ['Silver', {
+            red: 128,
+            green: 128,
+            blue: 128,
+            shortCode: 's',
+        }],
+    ]);
+
+    constructor(element, x, y, tileId = null, virtualTile = false) {
+        this.#x = x;
+        this.#y = y;
+        this.emphasised = false;
+        this.pathHighlighted = false;
+        this.#virtualTile = virtualTile;
+        this.type = 'regular';
+        this.objectType = '';
+
+        if (this.isVirtualTile()) {
+            this.#tileId = tileId.toString();
+        } else {
+            this.element = element;
+            this.backgroundImage = this.element.style.backgroundImage;
+            const unhighlightRegex = /^\s*linear-gradient.*?, (url\(.*)$/;
+
+            if (unhighlightRegex.test(this.backgroundImage)) {
+                this.backgroundImage = this.backgroundImage.match(unhighlightRegex)[1];
+            }
+
+            if (this.element.classList.contains('navNpc')) {
+                this.objectType = 'npc';
+            }
+
+            if (this.element.classList.contains('navBuilding')) {
+                this.objectType = 'building';
+            }
+
+            if (this.element.classList.contains('navWormhole')) {
+                this.type = 'wormhole';
+            }
+
+            if (this.element.classList.contains('navYhole')) {
+                this.type = 'y-hole';
+            }
+
+            if (this.element.classList.contains('navXhole')) {
+                this.type = 'x-hole';
+            }
+
+            // Get the tile id
+            if (this.element.classList.contains('navShip') && this.element.querySelector('#thisShip')) {
+                this.#tileId = this.getUserloc();
+            } else if (this.element.children.length > 0 && this.element.querySelector('A')) {
+                // In order to support blue stims, we have to use querySelector to handle the extra <div>
+                const childElement = this.element.querySelector('A');
+
+                // Can we navigate to the tile?
+                if ((!childElement.hasAttribute('onclick') || childElement.getAttribute('onclick').startsWith('warp')) && (!childElement.hasAttribute('_onclick') || childElement.getAttribute('_onclick').startsWith('warp'))) {
+                    this.#tileId = this.getUserloc();
+                } else if (childElement.hasAttribute('onclick') && childElement.getAttribute('onclick').startsWith('nav')) {
+                    this.#tileId = childElement.getAttribute('onclick').match(/^[^\d]*(\d*)[^\d]*$/)[1];
+                } else if (childElement.hasAttribute('_onclick') && childElement.getAttribute('_onclick').startsWith('nav')) {
+                    // Freeze Frame compatibility
+                    this.#tileId = childElement.getAttribute('_onclick').match(/^[^\d]*(\d*)[^\d]*$/)[1];
+                } else if (childElement.hasAttribute('_onclick') && childElement.getAttribute('_onclick') === 'null') {
+                    this.#tileId = this.getUserloc();
+                }
+            } else if (this.element.classList.contains('navShip')) {
+                // This only happens on retreating
+                this.#tileId = this.getUserloc();
+            }
+        }
+    }
+
+    isWormhole() {
+        return this.type === 'wormhole';
+    }
+
+    isXHole() {
+        return this.type === 'x-hole';
+    }
+
+    isYHole() {
+        return this.type === 'y-hole';
+    }
+
+    hasNpc() {
+        return this.objectType === 'npc';
+    }
+
+    set id(id) {
+        this.#tileId = id.toString();
+    }
+
+    get id() {
+        return this.#tileId;
+    }
+
+    get x() {
+        return this.#x;
+    }
+
+    get y() {
+        return this.#y;
+    }
+
+    getUserloc() {
+        if (typeof userloc !== 'undefined') {
+            return userloc.toString();
+        }
+        return '-1';
+    }
+
+    toString() {
+        return `Tile ${this.#tileId} [${this.x}, ${this.y}]`;
+    }
+
+    valueOf() {
+        return Number(this.#tileId);
+    }
+
+    isVirtualTile() {
+        return this.#virtualTile;
+    }
+
+    isClickable() {
+        if (!this.isVirtualTile() && this.#tileId && parseInt(this.#tileId, 10) > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    isNavigatable() {
+        if (!this.isVirtualTile() && this.element && this.element.children.length > 0 && this.element.querySelector('A')?.getAttribute('onclick') && this.element.querySelector('A')?.getAttribute('onclick').startsWith('nav') && this.isClickable()) {
+            return true;
+        }
+
+        if (!this.isVirtualTile() && this.element && this.element.children.length > 0 && this.element.querySelector('A')?.getAttribute('_onclick') && this.element.querySelector('A')?.getAttribute('_onclick').startsWith('nav') && this.isClickable()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    isCentreTile() {
+        return this.isCentre;
+    }
+
+    isHighlighted() {
+        if (this.#highlights.size > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    addEventListener(event, func, options = {}) {
+        if (Object.prototype.hasOwnProperty.call(options, 'nonce')) {
+            if (this.#listenerNonce.has(options.nonce)) {
+                return;
+            }
+        }
+
+        if (this.isNavigatable()) {
+            this.element.querySelector('A').addEventListener(event, func, options);
+
+            if (Object.prototype.hasOwnProperty.call(options, 'nonce')) {
+                this.#listenerNonce.add(options.nonce);
+            }
+        }
+    }
+
+    addHighlight(highlightColour) {
+        this.#highlights.add(highlightColour);
+        this.#refreshHighlightStatus();
+    }
+
+    addHighlights(highlights = new Set()) {
+        highlights.forEach((value) => {
+            this.#highlights.add(value);
+        });
+
+        this.#refreshHighlightStatus();
+    }
+
+    removeHighlight(highlightColour) {
+        this.#highlights.delete(highlightColour);
+        this.#refreshHighlightStatus();
+    }
+
+    isEmphasised() {
+        return this.emphasised;
+    }
+
+    emphasiseHighlight() {
+        this.emphasised = true;
+        this.#refreshHighlightStatus();
+    }
+
+    removeEmphasis() {
+        this.emphasised = false;
+        this.#refreshHighlightStatus();
+    }
+
+    clearHighlight() {
+        this.#clearAllHighlighting();
+    }
+
+    #refreshHighlightStatus() {
+        if (this.isVirtualTile()) {
+            return false;
+        }
+
+        if (this.#highlights.size === 0) {
+            return this.#clearAllHighlighting();
+        }
+
+        const highlightedColourString = this.#getHighlightedColourString();
+        const emphasis = this.emphasised ? 0.8 : 0.5;
+
+        // Does this tile have a background image?
+        if (this.backgroundImage) {
+            this.element.style.backgroundImage = `linear-gradient(to bottom, rgba(${highlightedColourString},${emphasis}), rgba(${highlightedColourString},${emphasis})), ${this.backgroundImage}`;
+        } else {
+            this.element.style.backgroundColor = `rgba(${highlightedColourString},1)`;
+            this.element.firstElementChild.style.opacity = 1 - emphasis;
+        }
+
+        return true;
+    }
+
+    #clearAllHighlighting() {
+        if (this.isVirtualTile()) {
+            return false;
+        }
+
+        this.#highlights.clear();
+
+        if (this.backgroundImage) {
+            this.element.style.backgroundImage = this.backgroundImage;
+        } else {
+            this.element.style.backgroundColor = '';
+            this.element.firstElementChild.style.opacity = 1;
+        }
+
+        return true;
+    }
+
+    * #yieldHighlightsRGB() {
+        for (const colour of this.constructor.colours.values()) {
+            if (this.#highlights.has(colour.shortCode)) {
+                yield {
+                    red: colour.red,
+                    green: colour.green,
+                    blue: colour.blue,
+                };
+            }
+        }
+    }
+
+    #getHighlightedColourString() {
+        if (this.isVirtualTile()) {
+            return false;
+        }
+
+        // This is probably the world's worst colour-mixing algorithm
+        let totalRed = 0;
+        let totalGreen = 0;
+        let totalBlue = 0;
+
+        let numberRed = 0;
+        let numberGreen = 0;
+        let numberBlue = 0;
+
+        for (const colour of this.#yieldHighlightsRGB()) {
+            totalRed += colour.red;
+            totalGreen += colour.green;
+            totalBlue += colour.blue;
+
+            numberRed += 1;
+            numberGreen += 1;
+            numberBlue += 1;
+        }
+
+        if (numberRed === 0) {
+            numberRed = 1;
+        }
+
+        if (numberGreen === 0) {
+            numberGreen = 1;
+        }
+
+        if (numberBlue === 0) {
+            numberBlue = 1;
+        }
+
+        return `${Math.floor(totalRed / numberRed)},${Math.floor(totalGreen / numberGreen)},${Math.floor(totalBlue / numberBlue)}`;
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pardus/sector.js
+
+
+class Sector {
+    #idStart = 0;
+    #columns = 0;
+    #rows = 0;
+
+    constructor(name, start, columns, rows) {
+        this.name = name;
+        this.#idStart = start;
+        this.#columns = columns;
+        this.#rows = rows;
+    }
+
+    contains(tileId) {
+        if (tileId >= this.#idStart && tileId < this.#idStart + (this.#columns * this.#rows)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    getTile(tileId) {
+        if (!this.contains(tileId)) {
+            return null;
+        }
+
+        return {
+            sector: this.name,
+            x: Math.floor((tileId - this.#idStart) / this.#rows),
+            y: (tileId - this.#idStart) % this.#rows,
+            tileId,
+            rows: this.#rows,
+            colums: this.#columns,
+        };
+    }
+
+    getVirtualTile(x, y, reference) {
+        return new Tile(null, x, y, Number(reference.id) + (x - reference.x) + ((y - reference.y) * this.#columns), true);
+    }
+
+    getTileHumanString(tileId) {
+        const sectorObj = this.getTile(tileId);
+
+        return `${sectorObj.sector} [${sectorObj.x}, ${sectorObj.y}]`;
+    }
+
+    getTileByCoords(x, y) {
+        if (Number(x) < 0 || Number(y) < 0 || Number(x) >= this.#columns || Number(y) >= this.#rows) {
+            return -1;
+        }
+
+        return Number(this.#idStart) + Number(x) * Number(this.#rows) + Number(y);
+    }
+}
+
+;// ./node_modules/pardus-library/src/data/sectors.js
+const sectors = {
+    "Aandti" : { "start": 78435, "cols": 22, "rows": 13 },
+    "AB 5-848" : { "start": 375000, "cols": 18, "rows": 14 },
+    "Abeho" : { "start": 325645, "cols": 25, "rows": 13 },
+    "Achird" : { "start": 118538, "cols": 22, "rows": 22 },
+    "Ackandso" : { "start": 24458, "cols": 26, "rows": 20 },
+    "Ackarack" : { "start": 300000, "cols": 14, "rows": 20 },
+    "Ackexa" : { "start": 32188, "cols": 20, "rows": 15 },
+    "Ackwada" : { "start": 101525, "cols": 22, "rows": 15 },
+    "Adaa" : { "start": 6409, "cols": 22, "rows": 26 },
+    "Adara" : { "start": 95219, "cols": 15, "rows": 21 },
+    "Aedce" : { "start": 306687, "cols": 17, "rows": 20 },
+    "Aeg" : { "start": 24978, "cols": 21, "rows": 13 },
+    "Alfirk" : { "start": 95534, "cols": 20, "rows": 15 },
+    "Algol" : { "start": 375252, "cols": 19, "rows": 25 },
+    "Alioth" : { "start": 32488, "cols": 16, "rows": 15 },
+    "Alpha Centauri" : { "start": 1, "cols": 19, "rows": 12 },
+    "AN 2-956" : { "start": 52083, "cols": 19, "rows": 20 },
+    "An Dzeve" : { "start": 6981, "cols": 23, "rows": 18 },
+    "Anaam" : { "start": 16466, "cols": 18, "rows": 20 },
+    "Anayed" : { "start": 300280, "cols": 15, "rows": 16 },
+    "Andexa" : { "start": 229, "cols": 20, "rows": 15 },
+    "Andsoled" : { "start": 318960, "cols": 18, "rows": 25 },
+    "Anphiex" : { "start": 78721, "cols": 18, "rows": 30 },
+    "Arexack" : { "start": 325970, "cols": 17, "rows": 17 },
+    "Atlas" : { "start": 79261, "cols": 21, "rows": 15 },
+    "Aveed" : { "start": 101855, "cols": 17, "rows": 15 },
+    "Aya" : { "start": 142998, "cols": 40, "rows": 35 },
+    "Ayargre" : { "start": 16826, "cols": 18, "rows": 18 },
+    "Ayinti" : { "start": 300520, "cols": 20, "rows": 20 },
+    "Ayqugre" : { "start": 307027, "cols": 16, "rows": 14 },
+    "Baar" : { "start": 79576, "cols": 16, "rows": 12 },
+    "Baham" : { "start": 139288, "cols": 29, "rows": 36 },
+    "BE 3-702" : { "start": 119022, "cols": 20, "rows": 20 },
+    "Becanin" : { "start": 52463, "cols": 17, "rows": 14 },
+    "Becanol" : { "start": 79768, "cols": 20, "rows": 25 },
+    "Bedaho" : { "start": 32728, "cols": 20, "rows": 18 },
+    "Beeday" : { "start": 300920, "cols": 16, "rows": 15 },
+    "Beethti" : { "start": 17150, "cols": 16, "rows": 20 },
+    "Begreze" : { "start": 17470, "cols": 17, "rows": 14 },
+    "Belati" : { "start": 301160, "cols": 25, "rows": 16 },
+    "Bellatrix" : { "start": 119422, "cols": 25, "rows": 18 },
+    "Besoex" : { "start": 25251, "cols": 13, "rows": 16 },
+    "Beta Hydri" : { "start": 102110, "cols": 24, "rows": 20 },
+    "Beta Proxima" : { "start": 529, "cols": 19, "rows": 19 },
+    "Betelgeuse" : { "start": 33088, "cols": 32, "rows": 22 },
+    "Betiess" : { "start": 40935, "cols": 13, "rows": 16 },
+    "Beurso" : { "start": 319410, "cols": 19, "rows": 25 },
+    "Bewaack" : { "start": 375727, "cols": 14, "rows": 25 },
+    "BL 3961" : { "start": 890, "cols": 20, "rows": 10 },
+    "BL 6-511" : { "start": 80268, "cols": 24, "rows": 31 },
+    "BQ 3-927" : { "start": 41143, "cols": 15, "rows": 15 },
+    "BU 5-773" : { "start": 326259, "cols": 25, "rows": 8 },
+    "Cabard" : { "start": 52701, "cols": 9, "rows": 22 },
+    "Canaab" : { "start": 7539, "cols": 18, "rows": 13 },
+    "Canexin" : { "start": 17708, "cols": 25, "rows": 25 },
+    "Canolin" : { "start": 324186, "cols": 16, "rows": 15 },
+    "Canopus" : { "start": 41368, "cols": 13, "rows": 22 },
+    "Capella" : { "start": 33792, "cols": 19, "rows": 17 },
+    "Cassand" : { "start": 25459, "cols": 13, "rows": 19 },
+    "CC 3-771" : { "start": 301560, "cols": 20, "rows": 10 },
+    "Ceanze" : { "start": 307251, "cols": 15, "rows": 17 },
+    "Cebalrai" : { "start": 119872, "cols": 21, "rows": 24 },
+    "Cebece" : { "start": 140332, "cols": 27, "rows": 18 },
+    "Cegreeth" : { "start": 376077, "cols": 18, "rows": 22 },
+    "Ceina" : { "start": 319885, "cols": 16, "rows": 15 },
+    "Cemiess" : { "start": 52899, "cols": 18, "rows": 15 },
+    "Cesoho" : { "start": 1090, "cols": 12, "rows": 7 },
+    "Cor Caroli" : { "start": 140818, "cols": 40, "rows": 42 },
+    "CP 2-197" : { "start": 102590, "cols": 16, "rows": 13 },
+    "Daaya" : { "start": 41654, "cols": 26, "rows": 25 },
+    "Daaze" : { "start": 320125, "cols": 17, "rows": 15 },
+    "Daceess" : { "start": 1174, "cols": 15, "rows": 8 },
+    "Dadaex" : { "start": 326459, "cols": 18, "rows": 21 },
+    "Dainfa" : { "start": 102798, "cols": 18, "rows": 18 },
+    "Datiack" : { "start": 18333, "cols": 19, "rows": 15 },
+    "Daured" : { "start": 103122, "cols": 18, "rows": 17 },
+    "Daurlia" : { "start": 25706, "cols": 14, "rows": 15 },
+    "Delta Pavonis" : { "start": 25916, "cols": 14, "rows": 27 },
+    "DH 3-625" : { "start": 110554, "cols": 16, "rows": 13 },
+    "DI 9-486" : { "start": 103428, "cols": 25, "rows": 16 },
+    "Diphda" : { "start": 95834, "cols": 20, "rows": 20 },
+    "DP 2-354" : { "start": 301760, "cols": 16, "rows": 14 },
+    "Dsiban" : { "start": 120376, "cols": 17, "rows": 17 },
+    "Dubhe" : { "start": 142498, "cols": 20, "rows": 25 },
+    "Edbeeth" : { "start": 18618, "cols": 18, "rows": 15 },
+    "Edeneth" : { "start": 8273, "cols": 12, "rows": 7 },
+    "Edenve" : { "start": 81012, "cols": 25, "rows": 25 },
+    "Edethex" : { "start": 103828, "cols": 25, "rows": 25 },
+    "Edmial" : { "start": 376473, "cols": 17, "rows": 16 },
+    "Edmize" : { "start": 18888, "cols": 16, "rows": 16 },
+    "Edqueth" : { "start": 320380, "cols": 17, "rows": 10 },
+    "Edvea" : { "start": 301984, "cols": 32, "rows": 24 },
+    "EH 5-382" : { "start": 96234, "cols": 14, "rows": 15 },
+    "Electra" : { "start": 42304, "cols": 23, "rows": 16 },
+    "Elnath" : { "start": 376745, "cols": 18, "rows": 25 },
+    "Enaness" : { "start": 42672, "cols": 21, "rows": 12 },
+    "Encea" : { "start": 53169, "cols": 14, "rows": 15 },
+    "Enif" : { "start": 138413, "cols": 35, "rows": 25 },
+    "Enioar" : { "start": 307506, "cols": 21, "rows": 13 },
+    "Enwaand" : { "start": 320550, "cols": 20, "rows": 22 },
+    "Epsilon Eridani" : { "start": 1294, "cols": 18, "rows": 32 },
+    "Epsilon Indi" : { "start": 34115, "cols": 20, "rows": 13 },
+    "Ericon" : { "start": 1870, "cols": 15, "rows": 26 },
+    "Essaa" : { "start": 34375, "cols": 11, "rows": 22 },
+    "Eta Cassiopeia" : { "start": 26294, "cols": 15, "rows": 35 },
+    "Etamin" : { "start": 144398, "cols": 31, "rows": 24 },
+    "Exackcan" : { "start": 26819, "cols": 15, "rows": 13 },
+    "Exbeur" : { "start": 53379, "cols": 25, "rows": 25 },
+    "Exinfa" : { "start": 8357, "cols": 10, "rows": 20 },
+    "Exiool" : { "start": 104453, "cols": 22, "rows": 19 },
+    "Faarfa" : { "start": 81637, "cols": 14, "rows": 12 },
+    "Facece" : { "start": 54004, "cols": 16, "rows": 23 },
+    "Fadaphi" : { "start": 377195, "cols": 25, "rows": 25 },
+    "Faedho" : { "start": 307779, "cols": 14, "rows": 25 },
+    "Faexze" : { "start": 2260, "cols": 23, "rows": 16 },
+    "Famiay" : { "start": 34617, "cols": 15, "rows": 13 },
+    "Famida" : { "start": 326837, "cols": 25, "rows": 19 },
+    "Famiso" : { "start": 42924, "cols": 22, "rows": 15 },
+    "Faphida" : { "start": 19144, "cols": 22, "rows": 14 },
+    "Fawaol" : { "start": 302752, "cols": 20, "rows": 25 },
+    "Fomalhaut" : { "start": 27014, "cols": 20, "rows": 20 },
+    "Fornacis" : { "start": 145142, "cols": 25, "rows": 30 },
+    "FR 3-328" : { "start": 320990, "cols": 12, "rows": 20 },
+    "Furud" : { "start": 120665, "cols": 15, "rows": 20 },
+    "Gienah Cygni" : { "start": 120965, "cols": 15, "rows": 26 },
+    "Gilo" : { "start": 81805, "cols": 18, "rows": 21 },
+    "GM 4-572" : { "start": 54372, "cols": 15, "rows": 13 },
+    "Gomeisa" : { "start": 145892, "cols": 30, "rows": 23 },
+    "Greandin" : { "start": 27414, "cols": 14, "rows": 23 },
+    "Grecein" : { "start": 8557, "cols": 13, "rows": 16 },
+    "Greenso" : { "start": 377820, "cols": 20, "rows": 16 },
+    "Grefaho" : { "start": 19452, "cols": 21, "rows": 20 },
+    "Greliai" : { "start": 303252, "cols": 16, "rows": 20 },
+    "Gresoin" : { "start": 327312, "cols": 25, "rows": 21 },
+    "Gretiay" : { "start": 104871, "cols": 20, "rows": 20 },
+    "GT 3-328" : { "start": 327837, "cols": 14, "rows": 16 },
+    "GV 4-652" : { "start": 34812, "cols": 12, "rows": 12 },
+    "HC 4-962" : { "start": 34956, "cols": 12, "rows": 13 },
+    "Heze" : { "start": 146605, "cols": 35, "rows": 40 },
+    "HO 2-296" : { "start": 48098, "cols": 15, "rows": 11 },
+    "Hoanda" : { "start": 2628, "cols": 16, "rows": 18 },
+    "Hobeex" : { "start": 308129, "cols": 19, "rows": 14 },
+    "Hocancan" : { "start": 43254, "cols": 17, "rows": 19 },
+    "Homam" : { "start": 121355, "cols": 17, "rows": 22 },
+    "Hooth" : { "start": 82183, "cols": 25, "rows": 13 },
+    "Hource" : { "start": 303572, "cols": 19, "rows": 16 },
+    "HW 3-863" : { "start": 96444, "cols": 16, "rows": 20 },
+    "Iceo" : { "start": 8765, "cols": 20, "rows": 14 },
+    "Inena" : { "start": 35112, "cols": 14, "rows": 21 },
+    "Inioen" : { "start": 308395, "cols": 13, "rows": 14 },
+    "Iniolol" : { "start": 27736, "cols": 17, "rows": 14 },
+    "Inliaa" : { "start": 9045, "cols": 12, "rows": 10 },
+    "Iohofa" : { "start": 328061, "cols": 24, "rows": 16 },
+    "Ioliaa" : { "start": 105271, "cols": 18, "rows": 16 },
+    "Ioquex" : { "start": 82508, "cols": 16, "rows": 15 },
+    "Iowagre" : { "start": 303876, "cols": 18, "rows": 12 },
+    "Iozeio" : { "start": 48263, "cols": 19, "rows": 13 },
+    "IP 3-251" : { "start": 7395, "cols": 16, "rows": 9 },
+    "Izar" : { "start": 121729, "cols": 16, "rows": 18 },
+    "JG 2-013" : { "start": 308577, "cols": 20, "rows": 8 },
+    "JO 4-132" : { "start": 378140, "cols": 20, "rows": 20 },
+    "JS 2-090" : { "start": 35406, "cols": 13, "rows": 10 },
+    "Keid" : { "start": 122017, "cols": 20, "rows": 20 },
+    "Keldon" : { "start": 27974, "cols": 26, "rows": 34 },
+    "Kenlada" : { "start": 7773, "cols": 25, "rows": 20 },
+    "Kitalpha" : { "start": 96764, "cols": 17, "rows": 16 },
+    "KU 3-616" : { "start": 28858, "cols": 12, "rows": 8 },
+    "Laanex" : { "start": 28954, "cols": 15, "rows": 16 },
+    "Labela" : { "start": 148005, "cols": 34, "rows": 38 },
+    "Ladaen" : { "start": 321230, "cols": 20, "rows": 23 },
+    "Laedgre" : { "start": 43577, "cols": 19, "rows": 20 },
+    "Lagreen" : { "start": 328445, "cols": 16, "rows": 20 },
+    "Lahola" : { "start": 54567, "cols": 25, "rows": 21 },
+    "Lalande" : { "start": 2916, "cols": 7, "rows": 10 },
+    "Lamice" : { "start": 9165, "cols": 25, "rows": 22 },
+    "Laolla" : { "start": 20240, "cols": 12, "rows": 17 },
+    "Lasolia" : { "start": 82748, "cols": 19, "rows": 16 },
+    "Lave" : { "start": 2986, "cols": 23, "rows": 16 },
+    "Lavebe" : { "start": 328765, "cols": 23, "rows": 8 },
+    "Lazebe" : { "start": 122417, "cols": 28, "rows": 19 },
+    "Leesti" : { "start": 308737, "cols": 15, "rows": 16 },
+    "Let" : { "start": 328949, "cols": 22, "rows": 34 },
+    "Liaackti" : { "start": 321690, "cols": 20, "rows": 23 },
+    "Liaface" : { "start": 308977, "cols": 20, "rows": 20 },
+    "Lianla" : { "start": 9715, "cols": 20, "rows": 20 },
+    "Liaququ" : { "start": 105559, "cols": 17, "rows": 24 },
+    "LN 3-141" : { "start": 29194, "cols": 6, "rows": 6 },
+    "LO 2-014" : { "start": 35536, "cols": 10, "rows": 3 },
+    "Maia" : { "start": 35566, "cols": 20, "rows": 13 },
+    "Matar" : { "start": 122949, "cols": 16, "rows": 16 },
+    "Mebsuta" : { "start": 97036, "cols": 17, "rows": 20 },
+    "Menkar" : { "start": 149297, "cols": 27, "rows": 34 },
+    "Menkent" : { "start": 105967, "cols": 20, "rows": 17 },
+    "Meram" : { "start": 168151, "cols": 20, "rows": 25 },
+    "Miackio" : { "start": 304092, "cols": 25, "rows": 16 },
+    "Miarin" : { "start": 3354, "cols": 7, "rows": 20 },
+    "Miayack" : { "start": 10115, "cols": 24, "rows": 14 },
+    "Miayda" : { "start": 378540, "cols": 25, "rows": 17 },
+    "Micanex" : { "start": 35826, "cols": 20, "rows": 20 },
+    "Mintaka" : { "start": 150215, "cols": 40, "rows": 25 },
+    "Miola" : { "start": 329697, "cols": 25, "rows": 19 },
+    "Miphimi" : { "start": 43957, "cols": 22, "rows": 18 },
+    "Mizar" : { "start": 51715, "cols": 16, "rows": 23 },
+    "Naos" : { "start": 106307, "cols": 17, "rows": 18 },
+    "Nari" : { "start": 137155, "cols": 34, "rows": 37 },
+    "Nashira" : { "start": 123205, "cols": 24, "rows": 21 },
+    "Nebul" : { "start": 36226, "cols": 12, "rows": 26 },
+    "Nekkar" : { "start": 123709, "cols": 14, "rows": 24 },
+    "Nex 0001" : { "start": 83052, "cols": 23, "rows": 25 },
+    "Nex 0002" : { "start": 44353, "cols": 20, "rows": 25 },
+    "Nex 0003" : { "start": 55092, "cols": 25, "rows": 20 },
+    "Nex 0004" : { "start": 97376, "cols": 25, "rows": 25 },
+    "Nex 0005" : { "start": 324426, "cols": 25, "rows": 25 },
+    "Nex 0006" : { "start": 378965, "cols": 25, "rows": 25 },
+    "Nex Kataam" : { "start": 47473, "cols": 25, "rows": 25 },
+    "Nhandu" : { "start": 160515, "cols": 28, "rows": 40 },
+    "Nionquat" : { "start": 36538, "cols": 15, "rows": 20 },
+    "Nunki" : { "start": 167638, "cols": 19, "rows": 27 },
+    "Nusakan" : { "start": 98001, "cols": 25, "rows": 19 },
+    "Oauress" : { "start": 322150, "cols": 22, "rows": 16 },
+    "Olaeth" : { "start": 124045, "cols": 18, "rows": 14 },
+    "Olaso" : { "start": 330172, "cols": 25, "rows": 20 },
+    "Olbea" : { "start": 10451, "cols": 21, "rows": 22 },
+    "Olcanze" : { "start": 44853, "cols": 20, "rows": 20 },
+    "Oldain" : { "start": 304492, "cols": 18, "rows": 18 },
+    "Olexti" : { "start": 3494, "cols": 8, "rows": 16 },
+    "Ollaffa" : { "start": 309377, "cols": 17, "rows": 14 },
+    "Olphize" : { "start": 20858, "cols": 19, "rows": 21 },
+    "Omicron Eridani" : { "start": 36838, "cols": 16, "rows": 19 },
+    "Ook" : { "start": 3622, "cols": 15, "rows": 15 },
+    "Ophiuchi" : { "start": 55592, "cols": 22, "rows": 20 },
+    "Orerve" : { "start": 3847, "cols": 18, "rows": 15 },
+    "Oucanfa" : { "start": 379590, "cols": 15, "rows": 15 },
+    "PA 2-013" : { "start": 330672, "cols": 20, "rows": 17 },
+    "Paan" : { "start": 56032, "cols": 25, "rows": 23 },
+    "Pardus" : { "start": 151215, "cols": 100, "rows": 93 },
+    "Pass EMP-01" : { "start": 15053, "cols": 20, "rows": 25 },
+    "Pass EMP-02" : { "start": 15553, "cols": 18, "rows": 20 },
+    "Pass EMP-03" : { "start": 31688, "cols": 25, "rows": 20 },
+    "Pass EMP-04" : { "start": 58622, "cols": 25, "rows": 25 },
+    "Pass EMP-05" : { "start": 59247, "cols": 13, "rows": 20 },
+    "Pass EMP-06" : { "start": 110762, "cols": 25, "rows": 13 },
+    "Pass EMP-07" : { "start": 312856, "cols": 25, "rows": 23 },
+    "Pass EMP-08" : { "start": 313431, "cols": 25, "rows": 21 },
+    "Pass EMP-09" : { "start": 313956, "cols": 25, "rows": 25 },
+    "Pass EMP-10" : { "start": 314581, "cols": 25, "rows": 25 },
+    "Pass EMP-11" : { "start": 315206, "cols": 15, "rows": 22 },
+    "Pass FED-01" : { "start": 15913, "cols": 18, "rows": 17 },
+    "Pass FED-02" : { "start": 16219, "cols": 13, "rows": 19 },
+    "Pass FED-03" : { "start": 39275, "cols": 17, "rows": 15 },
+    "Pass FED-04" : { "start": 39530, "cols": 25, "rows": 22 },
+    "Pass FED-05" : { "start": 40080, "cols": 21, "rows": 21 },
+    "Pass FED-06" : { "start": 40521, "cols": 18, "rows": 23 },
+    "Pass FED-07" : { "start": 85857, "cols": 27, "rows": 15 },
+    "Pass FED-08" : { "start": 315536, "cols": 14, "rows": 23 },
+    "Pass FED-09" : { "start": 315858, "cols": 23, "rows": 17 },
+    "Pass FED-10" : { "start": 316249, "cols": 19, "rows": 20 },
+    "Pass FED-11" : { "start": 316629, "cols": 22, "rows": 17 },
+    "Pass FED-12" : { "start": 317003, "cols": 21, "rows": 22 },
+    "Pass FED-13" : { "start": 381583, "cols": 16, "rows": 21 },
+    "Pass UNI-01" : { "start": 111087, "cols": 25, "rows": 16 },
+    "Pass UNI-02" : { "start": 111487, "cols": 10, "rows": 10 },
+    "Pass UNI-03" : { "start": 111587, "cols": 18, "rows": 20 },
+    "Pass UNI-04" : { "start": 127261, "cols": 25, "rows": 25 },
+    "Pass UNI-05" : { "start": 127886, "cols": 25, "rows": 26 },
+    "Pass UNI-06" : { "start": 317465, "cols": 17, "rows": 19 },
+    "Pass UNI-07" : { "start": 317788, "cols": 23, "rows": 24 },
+    "Pass UNI-08" : { "start": 318340, "cols": 20, "rows": 31 },
+    "Pass UNI-09" : { "start": 381919, "cols": 20, "rows": 15 },
+    "Phaet" : { "start": 124297, "cols": 17, "rows": 16 },
+    "Phao" : { "start": 98476, "cols": 21, "rows": 20 },
+    "Phekda" : { "start": 37142, "cols": 8, "rows": 17 },
+    "Phiagre" : { "start": 45253, "cols": 21, "rows": 13 },
+    "Phiandgre" : { "start": 322502, "cols": 24, "rows": 20 },
+    "Phicanho" : { "start": 10913, "cols": 13, "rows": 25 },
+    "PI 4-669" : { "start": 29230, "cols": 9, "rows": 10 },
+    "PJ 3373" : { "start": 4117, "cols": 10, "rows": 6 },
+    "PO 4-991" : { "start": 11238, "cols": 20, "rows": 14 },
+    "Polaris" : { "start": 83627, "cols": 10, "rows": 14 },
+    "Pollux" : { "start": 29320, "cols": 20, "rows": 10 },
+    "PP 5-713" : { "start": 325051, "cols": 15, "rows": 13 },
+    "Procyon" : { "start": 161635, "cols": 37, "rows": 31 },
+    "Propus" : { "start": 379815, "cols": 16, "rows": 20 },
+    "Quaack" : { "start": 162782, "cols": 28, "rows": 25 },
+    "Quana" : { "start": 11518, "cols": 16, "rows": 26 },
+    "Quaphi" : { "start": 304816, "cols": 17, "rows": 14 },
+    "Quator" : { "start": 29520, "cols": 18, "rows": 18 },
+    "Quexce" : { "start": 106613, "cols": 19, "rows": 24 },
+    "Quexho" : { "start": 322982, "cols": 17, "rows": 14 },
+    "Quince" : { "start": 56607, "cols": 14, "rows": 16 },
+    "Qumia" : { "start": 83767, "cols": 20, "rows": 15 },
+    "Qumiin" : { "start": 309615, "cols": 18, "rows": 20 },
+    "Quurze" : { "start": 4177, "cols": 16, "rows": 20 },
+    "QW 2-014" : { "start": 21257, "cols": 15, "rows": 9 },
+    "RA 3-124" : { "start": 309975, "cols": 12, "rows": 12 },
+    "Ras Elased" : { "start": 163482, "cols": 41, "rows": 40 },
+    "Rashkan" : { "start": 37278, "cols": 25, "rows": 29 },
+    "Regulus" : { "start": 29844, "cols": 16, "rows": 16 },
+    "Remo" : { "start": 45526, "cols": 28, "rows": 26 },
+    "Retho" : { "start": 21392, "cols": 22, "rows": 22 },
+    "Rigel" : { "start": 165122, "cols": 49, "rows": 34 },
+    "Ross" : { "start": 46254, "cols": 17, "rows": 15 },
+    "Rotanev" : { "start": 98896, "cols": 16, "rows": 19 },
+    "RV 2-578" : { "start": 11934, "cols": 14, "rows": 12 },
+    "RX 3-129" : { "start": 305054, "cols": 13, "rows": 12 },
+    "SA 2779" : { "start": 4497, "cols": 16, "rows": 5 },
+    "Sargas" : { "start": 166788, "cols": 34, "rows": 25 },
+    "SD 3-562" : { "start": 46509, "cols": 23, "rows": 19 },
+    "Seginus" : { "start": 99200, "cols": 17, "rows": 18 },
+    "SF 5-674" : { "start": 310119, "cols": 13, "rows": 22 },
+    "Siberion" : { "start": 4577, "cols": 25, "rows": 15 },
+    "Sigma Draconis" : { "start": 12102, "cols": 25, "rows": 20 },
+    "Silaad" : { "start": 380135, "cols": 25, "rows": 20 },
+    "Sirius" : { "start": 124569, "cols": 30, "rows": 25 },
+    "Ska" : { "start": 12602, "cols": 40, "rows": 25 },
+    "Sobein" : { "start": 331012, "cols": 15, "rows": 12 },
+    "Sodaack" : { "start": 56831, "cols": 15, "rows": 16 },
+    "Soessze" : { "start": 21876, "cols": 20, "rows": 20 },
+    "Sohoa" : { "start": 38003, "cols": 14, "rows": 16 },
+    "Sol" : { "start": 4952, "cols": 24, "rows": 29 },
+    "Solaqu" : { "start": 84067, "cols": 25, "rows": 25 },
+    "Soolti" : { "start": 310405, "cols": 21, "rows": 20 },
+    "Sophilia" : { "start": 107069, "cols": 24, "rows": 17 },
+    "Sowace" : { "start": 325246, "cols": 19, "rows": 21 },
+    "Spica" : { "start": 107477, "cols": 20, "rows": 23 },
+    "Stein" : { "start": 323220, "cols": 16, "rows": 16 },
+    "Subra" : { "start": 125319, "cols": 20, "rows": 20 },
+    "SZ 4-419" : { "start": 30100, "cols": 12, "rows": 7 },
+    "Tau Ceti" : { "start": 5648, "cols": 25, "rows": 15 },
+    "TG 2-143" : { "start": 22276, "cols": 11, "rows": 12 },
+    "Thabit" : { "start": 99506, "cols": 25, "rows": 25 },
+    "Tiacan" : { "start": 38227, "cols": 15, "rows": 18 },
+    "Tiacken" : { "start": 22408, "cols": 19, "rows": 28 },
+    "Tiafa" : { "start": 310825, "cols": 24, "rows": 27 },
+    "Tianbe" : { "start": 30184, "cols": 19, "rows": 15 },
+    "Tiexen" : { "start": 13602, "cols": 19, "rows": 20 },
+    "Tigrecan" : { "start": 331192, "cols": 19, "rows": 13 },
+    "Tiliala" : { "start": 57071, "cols": 25, "rows": 17 },
+    "Tiurio" : { "start": 305210, "cols": 25, "rows": 14 },
+    "Tivea" : { "start": 323476, "cols": 25, "rows": 20 },
+    "Turais" : { "start": 125719, "cols": 20, "rows": 23 },
+    "UF 3-555" : { "start": 311473, "cols": 14, "rows": 14 },
+    "UG 5-093" : { "start": 126179, "cols": 22, "rows": 23 },
+    "Urandack" : { "start": 13982, "cols": 20, "rows": 15 },
+    "Ureneth" : { "start": 311669, "cols": 18, "rows": 17 },
+    "Uressce" : { "start": 331439, "cols": 20, "rows": 17 },
+    "Urfaa" : { "start": 107937, "cols": 23, "rows": 20 },
+    "Urhoho" : { "start": 22940, "cols": 18, "rows": 18 },
+    "Urioed" : { "start": 57496, "cols": 21, "rows": 9 },
+    "Urlafa" : { "start": 30469, "cols": 17, "rows": 16 },
+    "Ururur" : { "start": 46946, "cols": 20, "rows": 17 },
+    "Usube" : { "start": 23264, "cols": 14, "rows": 30 },
+    "Uv Seti" : { "start": 331779, "cols": 22, "rows": 15 },
+    "UZ 8-466" : { "start": 84692, "cols": 20, "rows": 13 },
+    "Veareth" : { "start": 57685, "cols": 19, "rows": 25 },
+    "Vecelia" : { "start": 380635, "cols": 15, "rows": 26 },
+    "Veedfa" : { "start": 323976, "cols": 14, "rows": 15 },
+    "Vega" : { "start": 108857, "cols": 30, "rows": 25 },
+    "Veliace" : { "start": 332109, "cols": 25, "rows": 16 },
+    "Vewaa" : { "start": 30741, "cols": 22, "rows": 15 },
+    "VH 3-344" : { "start": 14282, "cols": 8, "rows": 16 },
+    "VM 3-326" : { "start": 311975, "cols": 25, "rows": 10 },
+    "Waarze" : { "start": 58160, "cols": 20, "rows": 14 },
+    "Waayan" : { "start": 38497, "cols": 25, "rows": 16 },
+    "Wainze" : { "start": 109607, "cols": 17, "rows": 16 },
+    "Waiophi" : { "start": 14410, "cols": 17, "rows": 15 },
+    "Wamien" : { "start": 312225, "cols": 25, "rows": 15 },
+    "Waolex" : { "start": 84952, "cols": 25, "rows": 25 },
+    "Wasat" : { "start": 100131, "cols": 25, "rows": 19 },
+    "Watibe" : { "start": 305560, "cols": 21, "rows": 15 },
+    "Wezen" : { "start": 126685, "cols": 20, "rows": 20 },
+    "WG 3-288" : { "start": 31071, "cols": 9, "rows": 13 },
+    "WI 4-329" : { "start": 332509, "cols": 16, "rows": 21 },
+    "WO 3-290" : { "start": 47286, "cols": 17, "rows": 11 },
+    "Wolf" : { "start": 31188, "cols": 18, "rows": 20 },
+    "WP 3155" : { "start": 6023, "cols": 17, "rows": 7 },
+    "WW 2-934" : { "start": 127085, "cols": 16, "rows": 11 },
+    "XC 3-261" : { "start": 14665, "cols": 16, "rows": 13 },
+    "Xeho" : { "start": 381025, "cols": 16, "rows": 17 },
+    "Xewao" : { "start": 312600, "cols": 16, "rows": 16 },
+    "XH 3819" : { "start": 6142, "cols": 16, "rows": 12 },
+    "YC 3-268" : { "start": 38897, "cols": 14, "rows": 15 },
+    "Yildun" : { "start": 100606, "cols": 14, "rows": 17 },
+    "YS 3-386" : { "start": 305875, "cols": 14, "rows": 20 },
+    "YV 3-386" : { "start": 109879, "cols": 12, "rows": 18 },
+    "Zamith" : { "start": 23684, "cols": 18, "rows": 18 },
+    "Zaniah" : { "start": 100844, "cols": 16, "rows": 16 },
+    "Zaurak" : { "start": 110095, "cols": 17, "rows": 27 },
+    "Zeaay" : { "start": 332845, "cols": 27, "rows": 14 },
+    "Zeaex" : { "start": 39107, "cols": 12, "rows": 14 },
+    "Zearla" : { "start": 306155, "cols": 17, "rows": 16 },
+    "Zelada" : { "start": 85577, "cols": 14, "rows": 20 },
+    "Zeolen" : { "start": 14873, "cols": 15, "rows": 12 },
+    "Zezela" : { "start": 31548, "cols": 14, "rows": 10 },
+    "Zirr" : { "start": 24008, "cols": 25, "rows": 18 },
+    "ZP 2-989" : { "start": 58440, "cols": 13, "rows": 14 },
+    "ZS 3-798" : { "start": 306427, "cols": 13, "rows": 20 },
+    "ZU 3-239" : { "start": 381297, "cols": 13, "rows": 22 },
+    "Zuben Elakrab" : { "start": 101100, "cols": 25, "rows": 17 },
+    "ZZ 2986" : { "start": 6334, "cols": 15, "rows": 5 },
+};
+
+;// ./node_modules/pardus-library/src/classes/static/sectors.js
+
+
+
+const Sectors = new Map();
+
+for (const sector of Object.keys(sectors)) {
+    Sectors.set(sector, new Sector(sector, sectors[sector].start, sectors[sector].cols, sectors[sector].rows));
+}
+
+Sectors.getSectorForTile = function(tileId) {
+    for (const sector of this.getSectors()) {
+        if (sector.contains(tileId)) {
+            return sector;
+        }
+    }
+
+    throw new Error(`No sector found for tile id ${tileId}`);
+};
+
+Sectors.getSectorAndCoordsForTile = function(tileId) {
+    return this.getSectorForTile(tileId).getTileHumanString(tileId);
+};
+
+Sectors.getTileIdFromSectorAndCoords = function(sector, x, y) {
+    let actualSector = sector;
+
+    if (actualSector.endsWith('NE')) {
+        actualSector = actualSector.substring(0, actualSector.length - 3);
+    }
+
+    if (actualSector.endsWith('East') || actualSector.endsWith('West')) {
+        actualSector = actualSector.substring(0, actualSector.length - 5);
+    }
+
+    if (actualSector.endsWith('North') || actualSector.endsWith('South') || actualSector.endsWith('Inner')) {
+        actualSector = actualSector.substring(0, actualSector.length - 6);
+    }
+
+    if (!this.has(actualSector)) {
+        throw new Error(`No data for sector '${actualSector}'!`);
+    }
+
+    return this.get(actualSector).getTileByCoords(x, y);
+};
+
+Sectors.getSectors = function * () {
+    for (const sector of this) {
+        yield sector[1];
+    }
+};
+
+/* harmony default export */ const static_sectors = (Sectors);
+
+;// ./node_modules/pardus-library/src/classes/main/nav.js
+
+
+
+
+class NavArea extends Refreshable {
+    #squad;
+    #navElement;
+    #height;
+    #width;
+    #grid = [];
+    #centreTile;
+
+    constructor(options = {
+        squad: false,
+    }) {
+        super();
+        this.#squad = options.squad;
+        this.refresh();
+    }
+
+    get height() {
+        return this.#height;
+    }
+
+    get width() {
+        return this.#width;
+    }
+
+    get grid() {
+        return this.#grid;
+    }
+
+    get centreTile() {
+        return this.#centreTile;
+    }
+
+    addTilesHighlights(tilesToHighlight) {
+        for (const tile of this.clickableTiles()) {
+            if (tilesToHighlight.has(tile.id)) {
+                tile.addHighlights(tilesToHighlight.get(tile.id));
+            }
+        }
+    }
+
+    addTilesHighlight(tilesToHighlight) {
+        for (const tile of this.clickableTiles()) {
+            if (tilesToHighlight.has(tile.id)) {
+                tile.addHighlight(tilesToHighlight.get(tile.id));
+            }
+        }
+    }
+
+    clearTilesHighlights() {
+        for (const tile of this.clickableTiles()) {
+            tile.clearHighlight();
+        }
+    }
+
+    refreshTilesToHighlight(tilesToHighlight) {
+        this.tilesToHighlight = tilesToHighlight;
+        this.refresh();
+    }
+
+    _reload() {
+        this.#navElement = document.getElementById('navareatransition');
+
+        if (!this.#navElement || this.#navElement.style.display === 'none') {
+            this.#navElement = document.getElementById('navarea');
+        }
+
+        this.#height = this.#navElement.rows.length;
+        this.#width = this.#navElement.rows[0].childElementCount;
+        this.#grid = [];
+
+        this.tilesMap = new Map();
+
+        let scannedX = 0;
+        let scannedY = 0;
+
+        for (const row of this.#navElement.rows) {
+            const rowArray = [];
+
+            for (const tileTd of row.children) {
+                let tileNumber;
+
+                /* There's probably no reason not to use the squad logic for normal ships, too */
+                if (this.#squad) {
+                    tileNumber = (scannedY * this.#width) + scannedX;
+                } else {
+                    tileNumber = parseInt(tileTd.id.match(/[^\d]*(\d*)/)[1], 10);
+                }
+
+                const tileX = tileNumber % this.#width;
+                const tileY = Math.floor(tileNumber / this.#width);
+                const tile = new Tile(tileTd, tileX, tileY);
+
+                rowArray.push(tile);
+                this.tilesMap.set(tile.id, tile);
+
+                scannedX++;
+            }
+
+            this.#grid.push(rowArray);
+            scannedY++;
+            scannedX = 0;
+        }
+
+        const centreX = Math.floor(this.#width / 2);
+        const centreY = Math.floor(this.#height / 2);
+
+        this.#centreTile = this.#grid[centreY][centreX];
+        this.#centreTile.isCentre = true;
+
+        /* For squads or other situations where no userloc is available */
+        if (!this.#centreTile.id || this.#centreTile.id === '-1') {
+            if (this.#grid[centreY - 1][centreX].id !== '-1') {
+                const newId = parseInt(this.#grid[centreY - 1][centreX].id, 10) + 1;
+                this.#centreTile.id = newId;
+            }
+        }
+    }
+
+    getTileOrVirtual(x, y, reference) {
+        if (x >= this.#grid[0].length || x < 0 || y < 0 || y >= this.#grid.length) {
+            return static_sectors.getSectorForTile(reference.id).getVirtualTile(x, y, reference);
+        }
+
+        return this.#grid[y][x];
+    }
+
+    * yieldPathBetween(from, to, ignoreNavigatable = false) {
+        let currentTile = from;
+        yield currentTile;
+
+        while (currentTile.x !== to.x || currentTile.y !== to.y) {
+            let directionX = 0;
+            let directionY = 0;
+
+            // Which way do we want to move?
+            if (currentTile.x > to.x) {
+                directionX = -1;
+            } else if (currentTile.x < to.x) {
+                directionX = 1;
+            }
+
+            if (currentTile.y > to.y) {
+                directionY = -1;
+            } else if (currentTile.y < to.y) {
+                directionY = 1;
+            }
+
+            if (directionX === 0 && directionY === 0) {
+                // We should never end up here, as it implies the two co-ords have the same x and y
+                break;
+            }
+
+            let candidateTile = this.#grid[currentTile.y + directionY][currentTile.x + directionX];
+
+            // Check to see if it's an unpassable tile, in which case the auto-pilot kicks in
+            if (!candidateTile.isNavigatable()) {
+                if (candidateTile.isVirtualTile()) {
+                    break;
+                }
+
+                // If we're still going diagonally, the auto-pilot cannot do anything smart, so try to go in just one direction
+                if (directionX !== 0 && directionY !== 0) {
+                    candidateTile = this.getTileOrVirtual(currentTile.x, currentTile.y + directionY, currentTile);
+
+                    if (!candidateTile.isNavigatable()) {
+                        candidateTile = this.getTileOrVirtual(currentTile.x + directionX, currentTile.y, currentTile);
+
+                        if (!candidateTile.isNavigatable()) {
+                            break;
+                        }
+                    }
+                } else if (directionX === 0) {
+                    // Vertical auto-pilot will attempt to navigate right, then left
+                    candidateTile = this.getTileOrVirtual(currentTile.x + 1, currentTile.y + directionY, currentTile);
+
+                    if (!candidateTile.isNavigatable() && !candidateTile.isVirtualTile()) {
+                        candidateTile = this.getTileOrVirtual(currentTile.x - 1, currentTile.y + directionY, currentTile);
+
+                        if (!candidateTile.isNavigatable() && !candidateTile.isVirtualTile()) {
+                            break;
+                        }
+                    }
+                } else if (directionY === 0) {
+                    // Horizontal auto-pilot will attempt to navigate down, then up
+                    candidateTile = this.getTileOrVirtual(currentTile.x + directionX, currentTile.y + 1, currentTile);
+
+                    if (!candidateTile.isNavigatable() && !candidateTile.isVirtualTile()) {
+                        candidateTile = this.getTileOrVirtual(currentTile.x + directionX, currentTile.y - 1, currentTile);
+
+                        if (!candidateTile.isNavigatable() && !candidateTile.isVirtualTile()) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            currentTile = candidateTile;
+            yield currentTile;
+        }
+    }
+
+    getPathBetween(from, to) {
+        return Array.from(this.yieldPathBetween(from, to));
+    }
+
+    getPathTo(tile) {
+        return this.getPathBetween(this.#centreTile, tile);
+    }
+
+    getPathFrom(tile) {
+        return this.getPathBetween(tile, this.#centreTile);
+    }
+
+    * yieldPathTo(tile) {
+        yield* this.yieldPathBetween(this.#centreTile, tile);
+    }
+
+    * yieldPathFrom(id, ignoreNavigatable = false) {
+        const fromTile = this.getTile(id);
+        yield* this.yieldPathBetween(fromTile, this.#centreTile, ignoreNavigatable);
+    }
+
+    getTile(id) {
+        if (this.tilesMap.has(id)) {
+            return this.tilesMap.get(id);
+        }
+
+        return null;
+    }
+
+    * tiles() {
+        for (const row of this.#grid) {
+            for (const tile of row) {
+                yield tile;
+            }
+        }
+    }
+
+    * clickableTiles() {
+        for (const tile of this.tiles()) {
+            if (tile.isClickable()) {
+                yield tile;
+            }
+        }
+    }
+
+    * navigatableTiles() {
+        for (const tile of this.tiles()) {
+            if (tile.isNavigatable()) {
+                yield tile;
+            }
+        }
+    }
+
+    getTileOnNav(id) {
+        for (const tile of this.tiles()) {
+            if (tile.id === id) {
+                return tile;
+            }
+        }
+
+        return null;
+    }
+
+    nav(id) {
+        if (typeof navAjax === 'function') {
+            return navAjax(id);  
+        }
+
+        if (typeof nav === 'function') {
+            return nav(id);  
+        }
+
+        throw new Error('No function for nav or navAjax found!');
+    }
+
+    warp(id) {
+        if (typeof warpAjax === 'function') {
+            return warpAjax(id);  
+        }
+
+        if (typeof warp === 'function') {
+            return warp(id);  
+        }
+
+        throw new Error('No function for warp or warpAjax found!');
+    }
+
+    xhole(id) {
+        const validXHoles = [
+            '44580', // Nex-0002
+            '47811', // Nex-Kataam
+            '55343', // Nex-0003
+            '83339', // Nex-0001
+            '97698', // Nex-0004
+            '324730', // Nex-0005
+            '379305', // Nex-0006
+        ];
+
+        if (!validXHoles.includes(id)) {
+            throw new Error(`Destination ${id} is not a valid X-hole!`);
+        }
+
+        const xHoleBoxElement = document.getElementById('xholebox');
+        xHoleBoxElement.elements.warpx.value = id;
+
+        if (typeof warpX === 'function') {
+            return warpX();  
+        }
+
+        return xHoleBoxElement.submit();
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/main/other-ships.js
+
+
+class OtherShips extends Refreshable {
+    constructor() {
+        super();
+        this.element = document.getElementById('otherships');
+        this.content = document.getElementById('otherships_content');
+        this.addMutationObserver(this.element);
+    }
+
+    mutationCallback(mutationsList, observer) {
+        for (const mutationRecord of mutationsList) {
+            // We only care about new elements being added, not any _gc_X elements being cleaned up
+            if (!('addedNodes' in mutationRecord) || mutationRecord.addedNodes.length === 0) {
+                continue;
+            }
+
+            // We only care about the otherships_content div being replaced
+            for (const addedNode of mutationRecord.addedNodes) {
+                if (!('id' in addedNode) || addedNode.id !== 'otherships_content') {
+                    continue;
+                }
+
+                // console.log(this);
+                this.content = addedNode;
+                this.refresh();
+            }
+        }
+    }
+
+    isFocusedOnSingleShip() {
+        return !!document.getElementById('divDetailsPlayerTop');
+    }
+
+    getShips() {
+        if (this.isFocusedOnSingleShip()) {
+            return null;
+        }
+
+        const ships = [];
+        const shipsElements = this.content.querySelectorAll('table');
+
+        for (const shipElement of shipsElements) {
+            const playerId = shipElement.id.slice(16); // tableScannerShip12345
+            const online = !!shipElement.querySelector('img')?.src.endsWith('online.png');
+            const [playerNameElement, allianceNameElement] = shipElement.querySelectorAll('a');
+            const playerName = playerNameElement.innerText;
+            const allianceName = allianceNameElement?.innerText;
+            const shipType = this.#extractShipNameFromBackgroundImage(shipElement.querySelector('td').style.backgroundImage);
+            const ship = {
+                playerId,
+                online,
+                playerName,
+                allianceName,
+                shipType,
+                shipElement
+            };
+
+            ships.push(ship);
+        }
+
+        return ships;
+    }
+
+    #extractShipNameFromBackgroundImage(backgroundImageStr) {
+        // 'url("//static.pardus.at/img/stdhq/ships/harvester_paint04.png")'
+        const url = backgroundImageStr.split('"')[1];
+        const shipImageWithPaintAndExtension = url.split('/')[url.split('/').length - 1];
+        const shipImageWithPaint = shipImageWithPaintAndExtension.slice(0, -4);
+
+        if (shipImageWithPaint.endsWith('_paint01') || shipImageWithPaint.endsWith('_paint02') || shipImageWithPaint.endsWith('_paint03') || shipImageWithPaint.endsWith('_paint04')) {
+            return shipImageWithPaint.slice(0, -8);
+        }
+
+        if (shipImageWithPaint.endsWith('_xmas')) {
+            return shipImageWithPaint.slice(0, -5);
+        }
+
+        return shipImageWithPaint;
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/main.js
+
+
+
+
+class Main extends AbstractPage {
+    #navArea;
+
+    constructor() {
+        super('/main.php');
+
+        this.#navArea = new NavArea();
+        this.otherShips = new OtherShips();
+        // this.otherShips.addAfterRefreshHook(() => {
+        //     console.log('Other ships refreshed!');
+        // });
+
+        this.#handlePartialRefresh(() => {
+            this.#navArea.refresh();
+        });
+    }
+
+    get nav() {
+        return this.#navArea;
+    }
+
+    #handlePartialRefresh(func) {
+        const mainElement = document.getElementById('tdSpaceChart');
+        const navElement = mainElement ? document.getElementById('tdSpaceChart').getElementsByTagName('table')[0].rows[1] : document.querySelectorAll('table td[valign="top"]')[1];
+
+        // This would be more specific, but it doesn't trigger enough refreshes
+        //const navElement = document.getElementById('nav').parentNode;
+
+        // Options for the observer (which mutations to observe)
+        const config = {
+            attributes: false,
+            childList: true,
+            subtree: true,
+        };
+
+        // Callback function to execute when mutations are observed
+        const callback = function(mutationsList, observer) {
+            func(mutationsList, observer);
+        };
+
+        // Create an observer instance linked to the callback function
+        const observer = new MutationObserver(callback);
+
+        // Start observing the target node for configured mutations
+        observer.observe(navElement, config);
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/msgframe.js
+
+
+
+class Msgframe extends AbstractPage {
+    #centreTd;
+
+    constructor() {
+        super('/msgframe.php');
+        this.#centreTd = document.querySelector('td[align="center"]');
+
+        if (window.parent) {
+            window.parent.window.addEventListener('pardus-message', (event) => {
+                this.addMessage(event.detail.msg, event.detail.type);
+            });
+        }
+    }
+
+    hasMessage() {
+        if (this.#centreTd.querySelector('table')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    addMessage(msg, type) {
+        let icon = 'gnome-info';
+        let colour = '#CCCCCC';
+
+        switch (type) {
+            case 'error':
+                icon = 'gnome-error';
+                colour = '#FF3300';
+                break;
+            default:
+                icon = 'gnome-info';
+                colour = '#CCCCCC';
+        }
+
+        this.#setMessage(msg, icon, colour);
+    }
+
+    #setMessage(msg, icon, colour) {
+        const str = `<table style="background-image:url(${PardusLibrary.getImagePackUrl()}bgmedium.gif);border-style:ridge;border-color:#2b2b51;border-width:2px;" cellspacing="0" cellpadding="0" align="center"><tbody><tr><td><img src="${PardusLibrary.getImagePackUrl()}${icon}.png" alt="" width="32" height="32"></td><td style="padding-left:2px;padding-right:4px;"><font style="font-weight:bold;font-size:13px;" color="${colour}"> ${msg}</font></td></tr></tbody></table>`;
+        this.#centreTd.innerHTML = str;
+    }
+
+    addErrorMessage(msg) {
+        this.addMessage(msg, 'error');
+    }
+
+    static sendMessage(msg, type) {
+        const messageDetail = {
+            detail: {
+                msg,
+                type,
+            },
+        };
+        const pardusMessageEvent = new CustomEvent('pardus-message', messageDetail);
+
+        const target = window.parent ? window.parent.window : window;
+        target.dispatchEvent(pardusMessageEvent);
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/logout.js
+
+
+class Logout extends AbstractPage {
+    constructor() {
+        super('/logout.php');
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pardus/commodity.js
+class Commodity {
+    #name;
+    #sellElement = null;
+    #buyElement = null;
+    sellPrice = 0;
+    buyPrice = 0;
+    shipStock = 0;
+    tradeStock = 0;
+    bal = 0;
+    min = 0;
+    max = 0;
+
+    constructor(name) {
+        this.#name = name;
+    }
+
+    get name() {
+        return this.#name;
+    }
+
+    set sellElement(element) {
+        this.#sellElement = element;
+    }
+
+    get buyElement() {
+        return this.#buyElement;
+    }
+
+    set buyElement(element) {
+        this.#buyElement = element;
+    }
+
+    sell(quantity) {
+        if (this.#sellElement !== null) {
+            this.#sellElement.value = quantity;
+            this.#sellElement.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    buy(quantity) {
+        if (this.#buyElement !== null) {
+            this.#buyElement.value = quantity;
+            this.#buyElement.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    getSelling() {
+        if (this.#sellElement !== null && this.#sellElement !== undefined) {
+            const parsed = parseInt(this.#sellElement.value, 10);
+            if (!Number.isNaN(parsed)) {
+                return parsed;
+            }
+        }
+        return 0;
+    }
+
+    getBuying() {
+        if (this.#buyElement !== null && this.#buyElement !== undefined) {
+            const parsed = parseInt(this.#buyElement.value, 10);
+            if (!Number.isNaN(parsed)) {
+                return parsed;
+            }
+        }
+        return 0;
+    }
+}
+
+;// ./node_modules/pardus-library/src/data/commodities.js
+const commodities = [
+    'Food',
+    'Energy',
+    'Water',
+    'Animal embryos',
+    'Ore',
+    'Metal',
+    'Electronics',
+    'Robots',
+    'Heavy plastics',
+    'Hand weapons',
+    'Medicines',
+    'Nebula gas',
+    'Chemical supplies',
+    'Gem stones',
+    'Liquor',
+    'Hydrogen fuel',
+    'Exotic matter',
+    'Optical components',
+    'Radioactive cells',
+    'Droid modules',
+    'Bio-waste',
+    'Leech baby',
+    'Nutrient clods',
+    'Cybernetic X-993 Parts',
+    'X-993 Repair-Drone',
+    'Neural Stimulator',
+    'Battleweapon Parts',
+    'Slaves',
+    'Drugs',
+    'Package',
+    'Faction package',
+    'Explosives',
+    'VIP',
+    'Christmas Glitter',
+    'Military Explosives',
+    'Human intestines',
+    'Skaari limbs',
+    'Keldon brains',
+    'Rashkir bones',
+    'Exotic Crystal',
+    'Blue Sapphire jewels',
+    'Ruby jewels',
+    'Golden Beryl jewels',
+    'Stim Chip',
+    'Neural Tissue',
+    'Capri Stim',
+    'Crimson Stim',
+    'Amber Stim'
+];
+
+;// ./node_modules/pardus-library/src/classes/pardus/ship-space.js
+class ShipSpace {
+    #hasMagscoop;
+    #startingShipSpace;
+    #startingMagscoopSpace;
+    #endingShipSpace;
+    #endingMagscoopSpace;
+    #magscoopSize = 150;
+
+    get hasMagscoop() {
+        return this.#hasMagscoop;
+    }
+
+    constructor(startingShipSpace, startingMagscoopSpace, hasMagscoop = false, magscoopSize = 150) {
+        this.#startingShipSpace = startingShipSpace;
+        this.#startingMagscoopSpace = startingMagscoopSpace;
+        this.#endingShipSpace = startingShipSpace;
+        this.#endingMagscoopSpace = startingMagscoopSpace;
+        this.#hasMagscoop = hasMagscoop;
+        this.#magscoopSize = magscoopSize;
+    }
+
+    calculateAvailableShipSpace(commodities) {
+        this.#calculateShipSpace(commodities);
+        return this.#endingShipSpace;
+    }
+
+    calculateAvailableMagscoopSpace(commodities) {
+        this.#calculateShipSpace(commodities);
+        return this.#endingMagscoopSpace;
+    }
+
+    calculateAvailableTotalSpace(commodities) {
+        this.#calculateShipSpace(commodities);
+        return this.#endingShipSpace + this.#endingMagscoopSpace;
+    }
+
+    getShipSpaceString() {
+        if (this.#hasMagscoop) {
+            return `${this.#endingShipSpace} + ${this.#endingMagscoopSpace}t`;
+        }
+        return `${this.#endingShipSpace}t`;
+    }
+
+    #calculateShipSpace(commodities) {
+        let toSell = 0;
+        let toBuy = 0;
+
+        for (const [commodityName, commodity] of commodities) {
+            if (commodity.shipStock > 0) {
+                toSell += commodity.getSelling();
+            }
+            if (commodity.tradeStock > commodity.min) {
+                toBuy += commodity.getBuying();
+            }
+        }
+
+        this.#endingShipSpace = this.#startingShipSpace;
+
+        if (this.#hasMagscoop) {
+            if (this.#endingShipSpace > 0) {
+                this.#endingMagscoopSpace = this.#startingMagscoopSpace;
+                this.#endingShipSpace = this.#endingShipSpace + toSell - toBuy;
+                if (this.#endingShipSpace < 0) {
+                    this.#endingMagscoopSpace += this.#endingShipSpace;
+                    this.#endingShipSpace = 0;
+                }
+            } else {
+                this.#endingMagscoopSpace = this.#startingMagscoopSpace + toSell - toBuy;
+                if (this.#endingMagscoopSpace > this.#magscoopSize) {
+                    this.#endingShipSpace += this.#endingMagscoopSpace - this.#magscoopSize;
+                    this.#endingMagscoopSpace = this.#magscoopSize;
+                }
+            }
+        } else {
+            this.#endingShipSpace = this.#endingShipSpace + toSell - toBuy;
+        }
+    }
+
+    allowedSpace(magscoopAllowed) {
+        if (this.#hasMagscoop && magscoopAllowed) {
+            return Number(this.#endingShipSpace) + Number(this.#endingMagscoopSpace);
+        }
+        return Number(this.#endingShipSpace);
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pardus/building-space.js
+class BuildingSpace {
+
+    #startingBuildingSpace;
+    #endingBuildingSpace;
+
+    constructor(startingBuildingSpace) {
+        this.#startingBuildingSpace = startingBuildingSpace;
+    }
+
+    calculateAvailableBuildingSpace(commodities) {
+        this.#calculateBuildingSpace(commodities);
+        return this.#endingBuildingSpace;
+    }
+
+    getBuildingSpaceString() {
+        return `${this.#endingBuildingSpace}t`;
+    }
+
+    #calculateBuildingSpace(commodities) {
+        let toSell = 0;
+        let toBuy = 0;
+
+        for (const [commodityName, commodity] of commodities) {
+            if (commodity.shipStock > 0) {
+                toSell += commodity.getSelling();
+            }
+            if (commodity.tradeStock > commodity.min) {
+                toBuy += commodity.getBuying();
+            }
+        }
+
+        this.#endingBuildingSpace = this.#startingBuildingSpace + toSell - toBuy;
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/abstract/tradeable-page.js
+
+
+
+
+
+
+class TradeablePage extends AbstractPage {
+    #buyTable;
+    #sellTable;
+    #transferButton;
+    #isPlayerOwned = false;
+    #commodities = new Map();
+    #shipSpace = null;
+    #buildingSpace = null;
+    #shipSpaceElement = null;
+    #buildingSpaceElement = null;
+    #spaceRecalcPending = false;
+    #parseOptions;
+
+    constructor(pageName = '', options = {}) {
+        super(pageName);
+        this.#parseOptions = options;
+
+        this.#findTables();
+        this.#parseTables();
+        this.#findTransferButton();
+        this.#wireSpaceListeners();
+    }
+
+    #parseInt(data) {
+        let toReturn = data.replace(/[,\-t]/g, '');
+
+        if (toReturn.search(/\+/g) !== -1) {
+            toReturn = 0;
+        }
+
+        return parseInt(toReturn, 10);
+    }
+
+    #decodeString(data) {
+        let toReturn = data.replace(/&nbsp;/g, ' ');
+        toReturn = toReturn.replace(/\xA0/g, ' ');
+
+        return toReturn;
+    }
+
+    #findTransferButton() {
+        const inputs = document.getElementsByTagName('input');
+
+        for (const input of inputs) {
+            if (input.value.trim() === '<- Transfer ->') {
+                this.#transferButton = input;
+            }
+        }
+
+        if (!this.#transferButton) {
+            this.#transferButton = document.querySelector('input[type="submit"][value*="Transfer"]');
+        }
+    }
+
+    #findTables() {
+        const tablesWithHeaders = document.getElementsByTagName('TH');
+
+        for (const tableToSearch of tablesWithHeaders) {
+            if (!this.#sellTable && this.#decodeString(tableToSearch.innerText) === 'Price (sell)') {
+                this.#sellTable = tableToSearch.parentNode.parentNode;
+            } else if (!this.#buyTable && this.#decodeString(tableToSearch.innerText) === 'Price (buy)') {
+                this.#buyTable = tableToSearch.parentNode.parentNode;
+            }
+
+            if (tableToSearch.innerText === 'Min') {
+                this.#isPlayerOwned = true;
+            }
+        }
+    }
+
+    get commodities() {
+        return this.#commodities;
+    }
+
+    get shipSpace() {
+        return this.#shipSpace;
+    }
+
+    get availableShipSpace() {
+        return this.#shipSpace.calculateAvailableShipSpace(this.#commodities);
+    }
+
+    get availableTotalSpace() {
+        return this.#shipSpace.calculateAvailableTotalSpace(this.#commodities);
+    }
+
+    get availableMagscoopSpace() {
+        return this.#shipSpace.calculateAvailableMagscoopSpace(this.#commodities);
+    }
+
+    allowedSpace(magscoopAllowed) {
+        if (magscoopAllowed && this.#shipSpace?.hasMagscoop) {
+            return this.availableTotalSpace;
+        }
+        return this.availableShipSpace;
+    }
+
+    get availableBuildingSpace() {
+        if (this.#buildingSpace === null) {
+            return null;
+        }
+        return this.#buildingSpace.calculateAvailableBuildingSpace(this.#commodities);
+    }
+
+    get transferButton() {
+        return this.#transferButton;
+    }
+
+    get isPlayerOwned() {
+        return this.#isPlayerOwned;
+    }
+
+    transfer() {
+        if (this.#transferButton) {
+            this.#transferButton.click();
+        }
+    }
+
+    recalculateSpace() {
+        if (this.#spaceRecalcPending) {
+            return;
+        }
+        this.#spaceRecalcPending = true;
+        setTimeout(() => {
+            this.#spaceRecalcPending = false;
+            this.#doRecalculateSpace();
+        }, 0);
+    }
+
+    #doRecalculateSpace() {
+        const shipSpace = this.availableShipSpace;
+        const magscoopSpace = this.#shipSpace?.hasMagscoop
+            ? this.availableMagscoopSpace : 0;
+        const totalSpace = this.#shipSpace?.hasMagscoop
+            ? this.availableTotalSpace : shipSpace;
+        const buildingSpace = this.availableBuildingSpace;
+        const hasMagscoop = this.#shipSpace?.hasMagscoop ?? false;
+
+        if (this.#shipSpaceElement) {
+            this.#shipSpaceElement.textContent = this.#shipSpace.getShipSpaceString();
+        }
+        if (this.#buildingSpaceElement && this.#buildingSpace) {
+            this.#buildingSpaceElement.textContent = this.#buildingSpace.getBuildingSpaceString();
+        }
+
+        document.dispatchEvent(new CustomEvent('pardus-trade-space-changed', {
+            detail: {
+                shipSpace, magscoopSpace, totalSpace, buildingSpace, hasMagscoop,
+            },
+        }));
+    }
+
+    #wireSpaceListeners() {
+        const handler = () => this.recalculateSpace();
+
+        if (this.#sellTable) {
+            this.#sellTable.addEventListener('keyup', handler, true);
+            this.#sellTable.addEventListener('click', handler, true);
+            this.#sellTable.addEventListener('input', handler, true);
+        }
+        if (this.#buyTable) {
+            this.#buyTable.addEventListener('keyup', handler, true);
+            this.#buyTable.addEventListener('click', handler, true);
+            this.#buyTable.addEventListener('input', handler, true);
+        }
+    }
+
+    #parseBuyCommodity(commodity, row) {
+        const overrides = this.#parseOptions.buyOverrides;
+
+        if (overrides) {
+            commodity.buyPrice = this.#parseInt(row.cells[overrides.buyPrice].innerText);
+            commodity.buyElement = row.cells[overrides.buyElement]?.childNodes[0] ?? null;
+
+            if (overrides.synthetic) {
+                commodity.tradeStock = overrides.synthetic.tradeStock;
+                commodity.bal = overrides.synthetic.bal;
+                commodity.min = overrides.synthetic.min;
+                commodity.max = overrides.synthetic.max;
+            }
+
+            if (overrides.shortageCheck && commodity.buyElement == null) {
+                commodity.tradeStock = 0;
+            }
+        } else if (this.#isPlayerOwned) {
+            commodity.tradeStock = this.#parseInt(row.cells[2].innerText);
+            commodity.min = this.#parseInt(row.cells[4].innerText);
+            commodity.max = this.#parseInt(row.cells[5].innerText);
+            commodity.buyPrice = this.#parseInt(row.cells[6].innerText);
+            commodity.buyElement = row.cells[7]?.childNodes[0] ?? null;
+        } else {
+            commodity.tradeStock = this.#parseInt(row.cells[2].innerText);
+            commodity.bal = this.#parseInt(row.cells[3].innerText);
+            commodity.min = commodity.bal;
+            commodity.max = this.#parseInt(row.cells[4].innerText);
+            commodity.buyPrice = this.#parseInt(row.cells[5].innerText);
+            commodity.buyElement = row.cells[6]?.childNodes[0] ?? null;
+        }
+    }
+
+    #parseTable(table, type) {
+        for (const row of table.rows) {
+            // Skip header row
+            if (row.cells[0].tagName === 'TH') {
+                continue;
+            }
+
+            // Skip break rows
+            if (row.cells.length < 2) {
+                continue;
+            }
+
+            // Free space row
+            if (this.#decodeString(row.cells[0].innerText) === 'free space:') {
+                switch (type) {
+                    case 'sell':
+                        this.#shipSpaceElement = row.cells[1];
+                        const shipSpaceLocation = row.cells[1];
+                        let hasMagscoop = false;
+                        let startingShipSpace = 0;
+                        let startingMagscoopSpace = 0;
+                        let magscoopSize = 150;
+
+                        // Do they have a magscoop?
+                        if (shipSpaceLocation.innerText.indexOf('+') !== -1) {
+
+                            const tmpFreeSpace = shipSpaceLocation.innerText.split('+');
+                            hasMagscoop = true;
+
+                            startingShipSpace = this.#parseInt(tmpFreeSpace[0]);
+                            startingMagscoopSpace = this.#parseInt(tmpFreeSpace[1]);
+
+                            if (startingMagscoopSpace > 150) {
+                                magscoopSize = 250;
+                            } else if (startingShipSpace > 0) {
+                                magscoopSize = 150;
+                            }
+
+                        } else {
+                            startingShipSpace = this.#parseInt(shipSpaceLocation.innerText);
+                        }
+
+                        if (!this.#shipSpace) {
+                            this.#shipSpace = new ShipSpace(startingShipSpace, startingMagscoopSpace, hasMagscoop, magscoopSize);
+                        }
+                        break;
+                    case 'buy':
+                        this.#buildingSpaceElement = row.cells[1];
+                        const buildingSpaceLocation = row.cells[1];
+                        const startingBuildingSpace = this.#parseInt(buildingSpaceLocation.innerText);
+
+                        if (!this.#buildingSpace) {
+                            this.#buildingSpace = new BuildingSpace(startingBuildingSpace);
+                        }
+
+                        break;
+                }
+
+            }
+
+            const commodityName = row.cells[1].innerText;
+
+            // Skip non-commodity row
+            if (!commodities.includes(commodityName)) {
+                continue;
+            }
+
+            let commodity = this.#commodities.get(commodityName);
+
+            if (!commodity) {
+                commodity = new Commodity(commodityName);
+            }
+
+            switch (type) {
+                case 'sell':
+                    commodity.shipStock = this.#parseInt(row.cells[2].innerText);
+                    commodity.sellPrice = this.#parseInt(row.cells[3].innerText);
+                    commodity.sellElement = row.cells[4]?.childNodes[0] ?? null;
+                    break;
+                case 'buy':
+                    this.#parseBuyCommodity(commodity, row);
+                    break;
+            }
+
+            this.#commodities.set(commodityName, commodity);
+        }
+    }
+
+    #parseTables() {
+        if (this.#sellTable) {
+            this.#parseTable(this.#sellTable, 'sell');
+        }
+        if (this.#buyTable) {
+            this.#parseTable(this.#buyTable, 'buy');
+        }
+
+        if (this.#parseOptions.syntheticBuildingSpace !== undefined && this.#buildingSpace === null) {
+            this.#buildingSpace = new BuildingSpace(this.#parseOptions.syntheticBuildingSpace);
+        }
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/planet-trade.js
+
+
+class PlanetTrade extends TradeablePage {
+    #planetType;
+
+    constructor() {
+        super('/planet_trade.php');
+        this.#identifyPlanet();
+    }
+
+    get type() {
+        return this.#planetType;
+    }
+
+    #identifyPlanet() {
+        const planetImage = document.getElementsByTagName('img')[3].src.split('/');
+        const imageString = planetImage[planetImage.length - 1];
+
+        switch (imageString) {
+            case 'planet_i.png':
+                this.#planetType = 'i';
+                break;
+            case 'planet_r.png':
+                this.#planetType = 'r';
+                break;
+            case 'planet_m.png':
+                this.#planetType = 'm';
+                break;
+            case 'planet_a.png':
+                this.#planetType = 'a';
+                break;
+            case 'planet_d.png':
+                this.#planetType = 'd';
+                break;
+            case 'planet_g.png':
+                this.#planetType = 'g';
+                break;
+            default:
+                this.#planetType = 'm';
+        }
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/starbase-trade.js
+
+
+class StarbaseTrade extends TradeablePage {
+    constructor() {
+        super('/starbase_trade.php');
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/blackmarket.js
+
+
+class Blackmarket extends TradeablePage {
+    constructor() {
+        super('/blackmarket.php', {
+            buyOverrides: {
+                buyPrice: 3,
+                buyElement: 4,
+                synthetic: {
+                    tradeStock: 999,
+                    bal: 0,
+                    min: 0,
+                    max: 1999,
+                },
+                shortageCheck: true,
+            },
+            syntheticBuildingSpace: 999,
+        });
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/drop-cargo.js
+
+
+
+class DropCargo extends AbstractPage {
+    #dropTable;
+    #commodities = new Map();
+
+    constructor() {
+        super('/drop_cargo.php');
+        this.#findTable();
+        this.#parseTable();
+    }
+
+    get commodities() {
+        return this.#commodities;
+    }
+
+    #parseInt(data) {
+        let toReturn = data.replace(/[,\-t]/g, '');
+
+        if (toReturn.search(/\+/g) !== -1) {
+            toReturn = 0;
+        }
+
+        return parseInt(toReturn, 10);
+    }
+
+    #findTable() {
+        const headers = document.getElementsByTagName('TH');
+
+        for (const header of headers) {
+            if (header.innerText === 'Resource') {
+                this.#dropTable = header.parentNode.parentNode;
+                break;
+            }
+        }
+    }
+
+    #parseTable() {
+        if (!this.#dropTable) {
+            return;
+        }
+
+        for (const row of this.#dropTable.rows) {
+            if (row.cells[0].tagName === 'TH') {
+                continue;
+            }
+
+            if (row.cells.length < 2) {
+                continue;
+            }
+
+            const commodityName = row.cells[1].innerText;
+
+            if (!commodities.includes(commodityName)) {
+                continue;
+            }
+
+            this.#commodities.set(commodityName, {
+                name: commodityName,
+                shipStock: this.#parseInt(row.cells[2].innerText),
+                dropElement: row.cells[3]?.childNodes[0] ?? null,
+                drop(quantity) {
+                    if (this.dropElement !== null) {
+                        this.dropElement.value = quantity;
+                    }
+                },
+            });
+        }
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/ship-transfer.js
+
+
+class ShipTransfer extends AbstractPage {
+    #form;
+    #resourcesTable;
+    #resources = new Map();
+
+    constructor() {
+        super('/ship2ship_transfer.php');
+        this.#form = document.getElementById('ship2ship_transfer');
+        this.#resourcesTable = document.querySelector('form table.messagestyle');
+        this.#parseResources();
+    }
+
+    get form() {
+        return this.#form;
+    }
+
+    get resourcesTable() {
+        return this.#resourcesTable;
+    }
+
+    get resources() {
+        return this.#resources;
+    }
+
+    get playerId() {
+        return document.querySelector('input[name="playerid"]').value;
+    }
+
+    get freeSpace() {
+        const freeSpaceElements = document.getElementsByTagName('b');
+        return freeSpaceElements.length === 1 ? parseInt(freeSpaceElements[0].textContent, 10) : 0;
+    }
+
+    submit() {
+        if (this.#form) {
+            this.#form.submit();
+        }
+    }
+
+    getRedirectUrl() {
+        const currentUrl = new URL(window.location);
+        return `${currentUrl.protocol}//${currentUrl.hostname}${currentUrl.pathname}?playerid=${this.playerId}`;
+    }
+
+    #parseResources() {
+        if (!this.#resourcesTable) {
+            return;
+        }
+
+        for (const row of this.#resourcesTable.rows) {
+            if (row.cells.length < 4) {
+                continue;
+            }
+
+            const resourceName = row.cells[1].textContent;
+            const amount = parseInt(row.cells[2].textContent, 10);
+            const inputElement = row.cells[3].childNodes[0] ?? null;
+
+            if (Number.isNaN(amount)) {
+                continue;
+            }
+
+            this.#resources.set(resourceName, {
+                name: resourceName,
+                amount,
+                inputElement,
+                row,
+                transfer(quantity) {
+                    if (this.inputElement !== null) {
+                        this.inputElement.value = quantity;
+                    }
+                },
+            });
+        }
+    }
+}
+
+;// ./node_modules/pardus-library/src/classes/pages/index.js
+
+
+
+
+
+
+
+
+
+;// ./node_modules/pardus-library/src/classes/pardus-library.js
+
+
+class PardusLibrary {
+    #currentPage;
+
+    constructor() {
+        switch (document.location.pathname) {
+            case '/main.php':
+                this.#currentPage = new Main();
+                break;
+            case '/logout.php':
+                this.#currentPage = new Logout();
+                break;
+            case '/planet_trade.php':
+                this.#currentPage = new PlanetTrade();
+                break;
+            case '/starbase_trade.php':
+                this.#currentPage = new StarbaseTrade();
+                break;
+            case '/blackmarket.php':
+                this.#currentPage = new Blackmarket();
+                break;
+            case '/drop_cargo.php':
+                this.#currentPage = new DropCargo();
+                break;
+            case '/ship2ship_transfer.php':
+                this.#currentPage = new ShipTransfer();
+                break;
+            default:
+                this.#currentPage = 'No page implemented!';
+        }
+    }
+
+    get page() {
+        return document.location.pathname;
+    }
+
+    get currentPage() {
+        return this.#currentPage;
+    }
+
+    get main() {
+        if (this.page === '/main.php') {
+            return this.#currentPage;
+        }
+
+        return null;
+    }
+
+    static getImagePackUrl() {
+        const defaultImagePackUrl = '//static.pardus.at/img/std/';
+        const imagePackUrl = String(document.querySelector('body').style.backgroundImage).replace(/url\("*|"*\)|[a-z0-9]+\.gif/g, '');
+
+        return imagePackUrl !== '' ? imagePackUrl : defaultImagePackUrl;
+    }
+
+    /**
+     *  Returns the active universe
+     *  @returns {string} One of 'orion', 'artemis', or 'pegasus'
+     *  @throws Will throw an error if no universe could be determined.
+     */
+    static getUniverse() {
+        switch (document.location.hostname) {
+            case 'orion.pardus.at':
+                return 'orion';
+            case 'artemis.pardus.at':
+                return 'artemis';
+            case 'pegasus.pardus.at':
+                return 'pegasus';
+            default:
+                throw new Error('Unable to determine universe');
+        }
+    }
+}
+
+;// ./node_modules/pardus-library/src/index.js
+
+
+
+
+
+;// ./node_modules/pardus-options-library/src/classes/pardus-options-utility.js
+/**
+ * @module PardusOptionsUtility
+ */
+class PardusOptionsUtility {
+    /**
+     *  @ignore
+     */
+    static defaultSaveFunction(key, value) {
+        return GM_setValue(key, value);
+    }
+
+    /**
+     *  @ignore
+     */
+    static defaultGetFunction(key, defaultValue = null) {
+        return GM_getValue(key, defaultValue);
+    }
+
+    /**
+     *  @ignore
+     */
+    static defaultDeleteFunction(key) {
+        return GM_deleteValue(key);
+    }
+
+    /**
+     *  Returns the active universe
+     *  @returns {string} One of 'orion', 'artemis', or 'pegasus'
+     *  @throws Will throw an error if no universe could be determined.
+     */
+    static getUniverse() {
+        switch (document.location.hostname) {
+            case 'orion.pardus.at':
+                return 'orion';
+            case 'artemis.pardus.at':
+                return 'artemis';
+            case 'pegasus.pardus.at':
+                return 'pegasus';
+            default:
+                throw new Error('Unable to determine universe');
+        }
+    }
+
+    /**
+     *  Returns the universe-specific name of a variable
+     *  @ignore
+     */
+    static getVariableName(variableName) {
+        return `${this.getUniverse()}_${variableName}`;
+    }
+
+    /**
+     *  Returns the universe-specific value of a variable
+     *  @param {string} variableName The name of the universe-specific variable to retrieve
+     *  @param {*} [defaultValue=null] A default value to return if the universe-specific variable has never been set.
+     *  @returns {*} Value of the universe-specific value, or if not set, the default value.
+     */
+    static getVariableValue(variableName, defaultValue = null) {
+        return this.defaultGetFunction(this.getVariableName(variableName), defaultValue);
+    }
+
+    /**
+     *  Sets the universe-specific value of a variable
+     *  @param {string} variableName The name of the universe-specific variable to set
+     *  @param {*} value The value to set for the universe-specific variable.
+     */
+    static setVariableValue(variableName, value) {
+        return this.defaultSaveFunction(this.getVariableName(variableName), value);
+    }
+
+    /**
+     *  Deletes the universe-specific value of a variable
+     *  @param {string} variableName The name of the universe-specific variable to delete
+     */
+    static deleteVariableValue(variableName) {
+        return this.defaultDeleteFunction(this.getVariableName(variableName));
+    }
+
+    /**
+     *  @ignore
+     */
+    static setActiveTab(id) {
+        window.localStorage.setItem('pardusOptionsOpenTab', id);
+        window.dispatchEvent(new window.Event('storage'));
+    }
+
+    /**
+     *  Returns a path to the user's image pack to use as a base for relative image URLs
+     *  @returns {string} Path to the user's iamge pack
+     */
+    static getImagePackUrl() {
+        const defaultImagePackUrl = '//static.pardus.at/img/std/';
+        const imagePackUrl = String(document.querySelector('body').style.backgroundImage).replace(/url\("*|"*\)|[a-z0-9]+\.gif/g, '');
+
+        return imagePackUrl !== '' ? imagePackUrl : defaultImagePackUrl;
+    }
+
+    /**
+     *  @ignore
+     */
+    static addGlobalListeners() {
+        EventTarget.prototype.addPardusKeyDownListener = function addPardusKeyDownListener(pardusVariable, defaultValue, listener, options = false) {
+            const pardusVariableKey = PardusOptionsUtility.getVariableValue(pardusVariable, defaultValue);
+
+            if (!pardusVariableKey) {
+                throw new Error(`No Pardus variable ${pardusVariable} defined!`);
+            }
+
+            if (Object.hasOwn(pardusVariableKey, 'disabled')) {
+                return;
+            }
+
+            if (!this.pardusListeners) {
+                this.pardusListeners = [];
+            }
+
+            // Prevent duplicates from being added
+            if (this.pardusListeners.includes(`${pardusVariableKey.code}${pardusVariable}`)) {
+                return;
+            }
+
+            this.pardusListeners.push(`${pardusVariableKey.code}${pardusVariable}`);
+
+            const eventListener = (event) => {
+                if (event.isComposing || event.keyCode === 229 || event.repeat) {
+                    return;
+                }
+
+                if (event.keyCode !== pardusVariableKey.code) {
+                    return;
+                }
+
+                listener(event);
+            };
+
+            this.addEventListener('keydown', eventListener, options);
+        };
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/html-element.js
+/**
+ * @class HtmlElement
+ */
+class HtmlElement {
+    /**
+     * @constructor HtmlElement
+     * @param {string} id HTML identifier for the element. Must be globally unique.
+     */
+    constructor(id) {
+        // Make sure it is a valid html identifier
+        if (!id || id === '') {
+            throw new Error('Id cannot be empty.');
+        }
+        const validIds = /^[a-zA-Z][\w:.-]*$/;
+        if (!validIds.test(id)) {
+            throw new Error(`Id '${id}' is not a valid HTML identifier.`);
+        }
+
+        this.id = id;
+        this.afterRefreshHooks = [];
+        this.beforeRefreshHooks = [];
+    }
+
+    /**
+     * Add an event listener to the element
+     * @function HtmlElement#addEventListener
+     * @param {string} eventName Name of the event to listen for
+     * @param {function} listener Listener to call when the event fires
+     */
+    addEventListener(eventName, listener, opts = false) {
+        if (this.getElement()) {
+            this.getElement().addEventListener(eventName, listener, opts);
+        }
+
+        if (opts && Object.hasOwn(opts, 'ephemeral') && opts.ephemeral) {
+            return;
+        }
+
+        this.addAfterRefreshHook(() => {
+            if (this.getElement()) {
+                this.getElement().addEventListener(eventName, listener, opts);
+            }
+        });
+    }
+
+    /**
+     * Remove an event listener from the element
+     * @function HtmlElement#removeEventListener
+     * @param {string} eventName Name of the event to listen for
+     * @param {function} listener Listener to call when the event fires
+     */
+    removeEventListener(eventName, listener) {
+        if (this.getElement()) {
+            this.getElement().removeEventListener(eventName, listener);
+        }
+    }
+
+    /**
+     * Return a string representation of the html element
+     * @function HtmlElement#toString
+     * @returns {string} String representation of the html element
+     */
+    toString() {
+        return `<div id='${this.id}'></div>`;
+    }
+
+    /**
+     * Run all hooks that should be called prior to refreshing the element
+     * @function HtmlElement#beforeRefreshElement
+     */
+    beforeRefreshElement() {
+        for (const func of this.beforeRefreshHooks) {
+            func();
+        }
+    }
+
+    /**
+     * Run all hooks that should be called after refreshing the element
+     * @function HtmlElement#afterRefreshElement
+     * @param {object} opts Optional arguments to be passed to the hooks
+     */
+    afterRefreshElement(opts = {}) {
+        for (const func of this.afterRefreshHooks) {
+            func(opts);
+        }
+    }
+
+    /**
+     * Add a hook to run after the element is refreshed
+     * @function HtmlElement#addAfterRefreshElement
+     * @param {function} func Function to call after the element is refreshed
+     */
+    addAfterRefreshHook(func) {
+        this.afterRefreshHooks.push(func);
+    }
+
+    /**
+     * Refresh the element in the dom
+     * @function HtmlElement#refreshElement
+     */
+    refreshElement() {
+        this.beforeRefreshElement();
+        this.getElement().replaceWith(this.toElement());
+        this.afterRefreshElement();
+    }
+
+    /**
+     * Gets how much the element should be offset from the top of the DOM
+     * @function HtmlElement#getOffsetTop
+     * @returns {integer} Pixels the element is offset from the top of the DOM
+     */
+    getOffsetTop() {
+        let currentOffset = this.getElement().offsetTop + this.getElement().offsetHeight;
+        let parent = this.getElement().offsetParent;
+
+        while (parent !== null) {
+            currentOffset += parent.offsetTop;
+            parent = parent.offsetParent;
+        }
+
+        return currentOffset;
+    }
+
+    /**
+     * Gets how much the element should be offset from the left of the DOM
+     * @function HtmlElement#getOffsetLeft
+     * @returns {integer} Pixels the element is offset from the left of the DOM
+     */
+    getOffsetLeft() {
+        let currentOffset = this.getElement().offsetLeft;
+        let parent = this.getElement().offsetParent;
+
+        while (parent !== null) {
+            currentOffset += parent.offsetLeft;
+            parent = parent.offsetParent;
+        }
+
+        return currentOffset;
+    }
+
+    /**
+     * Gets the element
+     * @function HtmlElement#getElement
+     * @returns {element} Element
+     */
+    getElement() {
+        return document.getElementById(this.id);
+    }
+
+    /**
+     * Creates the element within the DOM from the string representation
+     * @function HtmlElement#toElement
+     * @returns {element} Element
+     */
+    toElement() {
+        const template = document.createElement('template');
+        template.innerHTML = this.toString();
+        return template.content.firstChild;
+    }
+
+    /**
+     * Appends a child element to the element within the DOM
+     * @function HtmlElement#appendChild
+     * @param {element} child The child to append
+     * @returns {element} The child element
+     */
+    appendChild(ele) {
+        return document.getElementById(this.id).appendChild(ele);
+    }
+
+    /**
+     * Appends a child element to the element if it was a table within the DOM
+     * @function HtmlElement#appendTableChild
+     * @param {element} child The child to append
+     * @returns {element} The child element
+     */
+    appendTableChild(ele) {
+        return document.getElementById(this.id).firstChild.appendChild(ele);
+    }
+
+    /**
+     * Sets the innerHTML property of the element
+     * @function HtmlElement#setHTML
+     * @param {html} html to set inside the element
+     */
+    setHTML(html) {
+        this.innerHtml = html;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/tip-box.js
+
+
+
+class TipBox extends HtmlElement {
+    constructor({
+        id,
+    }) {
+        super(id);
+        this.contents = '';
+        this.title = '';
+        this.addEventListener('click', () => {
+            this.hide();
+        });
+    }
+
+    setContents({
+        contents = '',
+        title = '',
+    }) {
+        this.contents = contents;
+        this.title = title;
+        this.refreshElement();
+    }
+
+    setPosition({
+        element,
+        position = 'right',
+    }) {
+        let xOffset = 15;
+        let yOffset = -13;
+
+        switch (position) {
+            case 'left': {
+                xOffset += -220;
+                break;
+            }
+
+            case 'er': {
+                xOffset += 128;
+                break;
+            }
+
+            case 'lf': {
+                xOffset += -160;
+                yOffset += -310;
+                break;
+            }
+
+            default: {
+                break;
+            }
+        }
+
+        this.getElement().style.top = `${element.getOffsetTop() + yOffset}px`;
+        this.getElement().style.left = `${element.getOffsetLeft() + xOffset}px`;
+    }
+
+    show() {
+        this.getElement().removeAttribute('hidden');
+    }
+
+    hide() {
+        this.getElement().setAttribute('hidden', '');
+    }
+
+    toString() {
+        return `<div id="${this.id}" hidden="" style="position: absolute; width: 200px; z-index: 100; border: 1pt black solid; background: #000000; padding: 0px;"><table class="messagestyle" style="background:url(${PardusOptionsUtility.getImagePackUrl()}bgd.gif)" width="100%" cellspacing="0" cellpadding="3"><tbody><tr><td style="text-align:left;background:#000000;"><b>${this.title}</b></td></tr><tr><td style="text-align:left;">${this.contents}</td></tr><tr><td height="5"><spacer type="block" width="1" height="1"></spacer></td></tr><tr><td style="text-align:right;background:#31313A;"><b>GNN Library</b><img src="${PardusOptionsUtility.getImagePackUrl()}info.gif" width="10" height="12" border="0"></td></tr></tbody></table></div>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/tabs/tabs-row.js
+
+
+class TabsRow extends HtmlElement {
+    constructor({
+        id,
+        hidden = false,
+    }) {
+        super(id);
+        this.hidden = hidden;
+        this.labels = [];
+        this.addAfterRefreshHook(() => {
+            for (const label of this.labels) {
+                label.afterRefreshElement();
+            }
+        });
+    }
+
+    addLabel({
+        label,
+    }) {
+        this.labels.push(label);
+        if (this.getElement()) {
+            this.appendChild(label.toElement());
+            label.afterRefreshElement();
+        }
+    }
+
+    show() {
+        this.hidden = false;
+        this.refreshElement();
+    }
+
+    hide() {
+        this.hidden = true;
+        this.refreshElement();
+    }
+
+    toString() {
+        if (this.hidden) {
+            return `<tr id="${this.id}" cellspacing="0" cellpadding="0" border="0" hidden="">${this.labels.join('')}</tr>`;
+        }
+        return `<tr id="${this.id}" cellspacing="0" cellpadding="0" border="0">${this.labels.join('')}</tr>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/tabs/tabs-element.js
+
+
+
+class TabsElement extends HtmlElement {
+    constructor({
+        id,
+    }) {
+        super(id);
+        this.tabsRow = new TabsRow({
+            id: `${this.id}-row`,
+        });
+    }
+
+    addLabel({
+        label,
+    }) {
+        this.tabsRow.addLabel({
+            label,
+        });
+    }
+
+    toString() {
+        return `<table id="${this.id}" cellspacing="0" cellpadding="0" border="0" align="left"><tbody>${this.tabsRow}</tbody></table>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/contents-area.js
+
+
+class ContentsArea extends HtmlElement {
+    constructor({
+        id,
+    }) {
+        super(id);
+    }
+
+    addContent({
+        content,
+    }) {
+        this.appendChild(document.createElement('div').appendChild(content.toElement()));
+        content.afterRefreshElement({
+            maintainRefreshStatus: true,
+        });
+    }
+
+    toString() {
+        return `<tr id="${this.id}" cellspacing="0" cellpadding="0" border="0"></tr>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/tabs/tab-label.js
+
+
+
+class TabLabel extends HtmlElement {
+    constructor({
+        id,
+        heading,
+        active = false,
+        padding = '10px',
+    }) {
+        super(id);
+        this.padding = padding;
+        this.heading = heading;
+        this.active = active;
+        this.addEventListener('mouseover', () => {
+            if (this.active) {
+                this.getElement().style.cursor = 'default';
+            } else {
+                this.getElement().style.backgroundImage = `url(${PardusOptionsUtility.getImagePackUrl()}tabactive.png)`;
+                this.getElement().style.cursor = 'default';
+            }
+        });
+        this.addEventListener('mouseout', () => {
+            if (!this.active) {
+                this.getElement().style.backgroundImage = `url(${PardusOptionsUtility.getImagePackUrl()}tab.png)`;
+                this.getElement().style.cursor = 'default';
+            }
+        });
+    }
+
+    toString() {
+        const imageUrl = (this.active) ? 'tabactive' : 'tab';
+        return `<td id="${this.id}" style="background: transparent url(&quot;${PardusOptionsUtility.getImagePackUrl()}${imageUrl}.png&quot;) no-repeat scroll 0% 0%; background-size: cover; cursor: default; padding-left: ${this.padding}; padding-right: ${this.padding}; box-sizing: border-box" class="tabcontent">${this.heading}</td>`;
+    }
+
+    setActive() {
+        this.getElement().style.backgroundImage = `url('${PardusOptionsUtility.getImagePackUrl()}tabactive.png')`;
+        this.active = true;
+    }
+
+    setInactive() {
+        this.getElement().style.backgroundImage = `url('${PardusOptionsUtility.getImagePackUrl()}tab.png')`;
+        this.active = false;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/disableable-html-element.js
+
+
+/**
+ * @class DisableableHtmlElement
+ * @extends HtmlElement
+ * @abstract
+ */
+class DisableableHtmlElement extends HtmlElement {
+    /**
+     * Create an HTML element that can be disabled
+     * @param {object} params Object containing parameters
+     * @param {string} params.id The id of the string. Must be unique.
+     * @param {boolean} params.disabled Whether the element is disabled or not
+     */
+    constructor({
+        id,
+        disabled = false,
+    }) {
+        super(id);
+        this.disabled = disabled;
+    }
+
+    /**
+     * Disables this element and all nested elements
+     * @function DisableableHtmlElement#disable
+     */
+    disable() {
+        this.setDisabled(true);
+        this.refreshElement();
+    }
+
+    /**
+     * Enables this element and all nested elements
+     * @function DisableableHtmlElement#enable
+     */
+    enable() {
+        this.setDisabled(false);
+        this.refreshElement();
+    }
+
+    /**
+     * Allows disabling or enabling ths element and all nested elements without refreshing
+     * @function DisableableHtmlElement#setDisabled
+     */
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/abstract/abstract-button.js
+
+
+class AbstractButton extends DisableableHtmlElement {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+        styleExtra = '',
+        actionText = '',
+        actionPerformedText = '',
+    }) {
+        super({
+            id,
+            disabled,
+        });
+
+        this.premium = premium;
+
+        if (this.premium) {
+            this.colour = '#FFCC11';
+        } else {
+            this.colour = '#D0D1D9';
+        }
+
+        this.backgroundColour = '#00001C';
+
+        if (this.disabled) {
+            this.colour = '#B5B5B5';
+            this.backgroundColour = '#CCCCCC';
+        }
+
+        this.styleExtra = styleExtra;
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+
+        this.actionText = actionText;
+        this.actionPerformedText = actionPerformedText;
+    }
+
+    toString() {
+        return `<input value="${this.actionText}" id="${this.id}" type="button" style="${this.style}" ${this.disabled ? 'disabled' : ''}>`;
+    }
+
+    /**
+     * Add an event listener to the element
+     * @function HtmlElement#addEventListener
+     * @param {function} listener Listener to call when the event fires
+     */
+    addClickListener(listener, opts = false) {
+        if (this.getElement()) {
+            this.getElement().addEventListener('click', listener, opts);
+        }
+
+        if (opts && Object.hasOwn(opts, 'ephemeral') && opts.ephemeral) {
+            return;
+        }
+
+        this.addAfterRefreshHook(() => {
+            if (this.getElement()) {
+                this.getElement().addEventListener('click', listener, opts);
+            }
+        });
+    }
+
+    setActionText(actionText = '', actionPerformedText = '') {
+        this.actionText = actionText;
+        this.actionPerformedText = actionPerformedText;
+        this.refreshElement();
+    }
+
+    displayClicked() {
+        this.getElement().setAttribute('disabled', 'true');
+        this.getElement().value = this.actionPerformedText;
+        this.getElement().setAttribute('style', 'color:green;background-color:silver');
+        setTimeout(() => {
+            this.getElement().removeAttribute('disabled');
+            this.getElement().value = this.actionText;
+            if (this.premium) {
+                this.getElement().setAttribute('style', 'color:#FFCC11');
+            } else {
+                this.getElement().removeAttribute('style');
+            }
+        }, 2000);
+    }
+
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        if (this.disabled) {
+            this.colour = '#B5B5B5';
+            this.backgroundColour = '#CCCCCC';
+        } else {
+            if (this.premium) {
+                this.colour = '#FFCC11';
+            } else {
+                this.colour = '#D0D1D9';
+            }
+            this.backgroundColour = '#00001C';
+        }
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+    }
+
+    disable() {
+        this.setDisabled(true);
+        if (this.getElement()) {
+            this.getElement().setAttribute('disabled', 'true');
+            this.getElement().setAttribute('style', this.style);
+        }
+    }
+
+    enable() {
+        this.setDisabled(false);
+        if (this.getElement()) {
+            this.getElement().removeAttribute('disabled');
+            this.getElement().setAttribute('style', this.style);
+        }
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/save-button-row/save-button.js
+
+
+class SaveButton extends AbstractButton {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+    }) {
+        super({
+            id,
+            premium,
+            disabled,
+            actionText: 'Save',
+            actionPerformedText: 'Saved',
+        });
+    }
+
+    displaySaved() {
+        this.displayClicked();
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/save-button-row/reset-button.js
+
+
+class ResetButton extends AbstractButton {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+    }) {
+        super({
+            id,
+            premium,
+            disabled,
+            actionText: 'Reset',
+            actionPerformedText: 'Reset',
+        });
+    }
+
+    displayReset() {
+        this.displayClicked();
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/save-button-row/save-button-row.js
+
+
+
+
+class SaveButtonRow extends DisableableHtmlElement {
+    constructor({
+        id,
+        premium = false,
+        resetButton = false,
+        disabled = false,
+    }) {
+        super({
+            id,
+            disabled,
+        });
+        this.premium = premium;
+        this.saveButton = new SaveButton({
+            id: `${this.id}-button`,
+            premium,
+            disabled,
+        });
+
+        if (resetButton) {
+            this.resetButton = new ResetButton({
+                id: `${this.id}-reset-button`,
+                premium,
+                disabled,
+            });
+        } else {
+            this.resetButton = null;
+        }
+    }
+
+    toString() {
+        return `<tr id="${this.id}"><td align="right" style="padding-right: 6px;">${(this.resetButton) ? `${this.resetButton}&nbsp` : ''}${this.saveButton}</td></tr>`;
+    }
+
+    /**
+     * Allows disabling or enabling this element and all nested elements without refreshing
+     * @function SaveButtonRow#setDisabled
+     */
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        this.saveButton.setDisabled(disabled);
+        if (this.resetButton) {
+            this.resetButton.setDisabled(disabled);
+        }
+    }
+
+    displaySaved() {
+        this.saveButton.displaySaved();
+    }
+
+    displayReset() {
+        if (this.resetButton) {
+            this.resetButton.displayReset();
+        }
+    }
+
+    addSaveEventListener(func) {
+        this.saveButton.addEventListener('click', func);
+    }
+
+    addResetEventListener(func) {
+        if (this.resetButton) {
+            this.resetButton.addEventListener('click', func);
+        }
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/save-button-row/load-button.js
+
+
+class LoadButton extends AbstractButton {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+    }) {
+        super({
+            id,
+            premium,
+            disabled,
+            actionText: 'Load',
+            actionPerformedText: 'Loaded',
+        });
+    }
+
+    displayLoaded() {
+        this.displayClicked();
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/save-button-row/preset-label.js
+
+
+
+class PresetLabel extends DisableableHtmlElement {
+    constructor({
+        id,
+        disabled = false,
+        defaultValue = '',
+    }) {
+        super({
+            id,
+            disabled,
+        });
+        this.defaultValue = defaultValue;
+        this.styleExtra = '';
+        this.colour = '#D0D1D9';
+        this.backgroundColour = '#00001C';
+
+        if (this.disabled) {
+            this.colour = '#B5B5B5';
+            this.backgroundColour = '#CCCCCC';
+        }
+
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+    }
+
+    toString() {
+        return `<input id="${this.id}" type="text" value="${this.getValue()}" style="${this.style}" ${this.disabled ? 'disabled' : ''}></input>`;
+    }
+
+    save() {
+        PardusOptionsUtility.defaultSaveFunction(`${PardusOptionsUtility.getVariableName(this.id)}`, this.getCurrentValue());
+    }
+
+    hasValue() {
+        if (!PardusOptionsUtility.defaultGetFunction(`${PardusOptionsUtility.getVariableName(this.id)}`, false)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Disables the input element
+     * @function AbstractOption#disable
+     */
+    disable() {
+        this.setDisabled(true);
+        if (this.getInputElement()) {
+            this.getInputElement().removeAttribute('disabled');
+            this.getInputElement().setAttribute('style', this.style);
+        }
+    }
+
+    /**
+     * Enables the input element
+     * @function AbstractOption#enable
+     */
+    enable() {
+        this.setDisabled(false);
+        if (this.getInputElement()) {
+            this.getInputElement().removeAttribute('disabled');
+            this.getInputElement().setAttribute('style', this.style);
+        }
+    }
+
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        if (this.disabled) {
+            this.colour = '#B5B5B5';
+            this.backgroundColour = '#CCCCCC';
+        } else {
+            this.colour = '#D0D1D9';
+            this.backgroundColour = '#00001C';
+        }
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+    }
+
+    /**
+     * Gets the input element for the option
+     * @function PresetLabel#getInputElement
+     * @returns {object} Input element
+     */
+    getInputElement() {
+        return document.getElementById(this.id);
+    }
+
+    getCurrentValue() {
+        return this.getInputElement().value;
+    }
+
+    getValue() {
+        return PardusOptionsUtility.defaultGetFunction(`${PardusOptionsUtility.getVariableName(this.id)}`, this.defaultValue);
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/save-button-row/preset-row.js
+
+
+
+
+
+class PresetRow extends DisableableHtmlElement {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+        presetNumber,
+    }) {
+        super({
+            id,
+            disabled,
+        });
+        this.premium = premium;
+        this.saveButton = new SaveButton({
+            id: `${this.id}-save-button`,
+            premium,
+            disabled,
+        });
+        this.loadButton = new LoadButton({
+            id: `${this.id}-load-button`,
+            premium,
+            disabled,
+        });
+        this.presetNumber = presetNumber;
+        this.label = new PresetLabel({
+            id: `${this.id}-label`,
+            defaultValue: `Preset ${this.presetNumber}`,
+            disabled,
+        });
+
+        if (!this.hasValue()) {
+            this.loadButton.disable();
+        }
+    }
+
+    toString() {
+        return `<tr id="${this.id}"><td align="left">${this.label}</input></td><td align="right">${this.loadButton} ${this.saveButton}</td></tr>`;
+    }
+
+    /**
+     * Allows disabling or enabling this element and all nested elements without refreshing
+     * @function PresetRow#setDisabled
+     */
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        this.saveButton.setDisabled(disabled);
+        this.loadButton.setDisabled(disabled);
+        this.label.setDisabled(disabled);
+    }
+
+    displaySaved() {
+        this.saveButton.displaySaved();
+    }
+
+    displayLoaded() {
+        if (this.loadButton) {
+            this.loadButton.displayLoaded();
+        }
+    }
+
+    hasValue() {
+        return this.label.hasValue();
+    }
+
+    setFunctions(options) {
+        if (options.length !== 0) {
+            this.addSaveEventListener(() => {
+                for (const option of options) {
+                    option.saveValue((name, value) => {
+                        option.saveFunction(`preset-${this.presetNumber}-${name}`, value);
+                    });
+                }
+                this.displaySaved();
+                this.loadButton.enable();
+
+                this.label.save();
+
+                const event = new Event('preset-save', { bubbles: true });
+                this.getElement().dispatchEvent(event);
+            });
+            this.addLoadEventListener(() => {
+                for (const option of options) {
+                    option.loadValue(option.getValue((name, value) => option.getFunction(`preset-${this.presetNumber}-${name}`, value)));
+                }
+                this.displayLoaded();
+
+                const event = new Event('preset-load', { bubbles: true });
+                this.getElement().dispatchEvent(event);
+            });
+        }
+    }
+
+    addSaveEventListener(func) {
+        this.saveButton.addEventListener('click', func);
+    }
+
+    addLoadEventListener(func) {
+        if (this.loadButton) {
+            this.loadButton.addEventListener('click', func);
+        }
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/save-button-row/presets.js
+
+
+
+class Presets extends DisableableHtmlElement {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+        presets = 0,
+    }) {
+        super({
+            id,
+            disabled,
+        });
+        this.premium = premium;
+        this.presets = [];
+        for (let i = 0; i < presets; i += 1) {
+            this.presets.push(new PresetRow({
+                id: `${this.id}-preset-row-${i}`,
+                premium,
+                disabled,
+                presetNumber: i + 1,
+            }));
+        }
+    }
+
+    /**
+     * Allows disabling or enabling this element and all nested elements without refreshing
+     * @function Presets#setDisabled
+     */
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        for (const preset of this.presets) {
+            preset.setDisabled(disabled);
+        }
+    }
+
+    toString() {
+        if (this.presets.length === 0) {
+            return '';
+        }
+
+        let html = `<tr id="${this.id}"><td><table width="100%">`;
+
+        for (const presetRow of this.presets) {
+            html += presetRow;
+        }
+
+        return `${html}</table></td></tr>`;
+    }
+
+    setFunctions(options) {
+        for (const presetRow of this.presets) {
+            presetRow.setFunctions(options);
+        }
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/info-element.js
+
+
+
+
+/**
+ * @class InfoElement
+ * @extends HtmlElement
+ */
+class InfoElement extends HtmlElement {
+    /**
+     * @constructor InfoElement
+     * @param {string} id HTML identifier for the element. Must be globally unique.
+     * @param {string} description Text to display in the InfoElement box
+     * @param {string} title Title to display at the top of the InfoElement box
+     * @param {string} [tipBoxPosition=right] The direction the InfoElement should appear in. Either 'right' or 'left'
+     */
+    constructor({
+        id,
+        description,
+        title,
+        tipBoxPosition = 'right',
+    }) {
+        super(id);
+        this.description = description;
+        this.title = title;
+        this.tipBoxPosition = tipBoxPosition;
+
+        this.addEventListener('mouseover', () => {
+            // eslint-disable-next-line import/no-cycle
+            this.tipBox = PardusOptions.getDefaultTipBox();
+            this.tipBox.setContents({
+                title: this.title,
+                contents: this.description,
+            });
+
+            this.tipBox.setPosition({
+                element: this,
+                position: this.tipBoxPosition,
+            });
+
+            this.tipBox.show();
+        });
+
+        this.addEventListener('mouseout', () => {
+            this.tipBox.hide();
+        });
+    }
+
+    /**
+     * Return a string representation of the InfoElement
+     * @function HtmlElement#toString
+     * @returns {string} String representation of the InfoElement
+     */
+    toString() {
+        return `<a id="${this.id}" href="#" onclick="return false;"><img src="${PardusOptionsUtility.getImagePackUrl()}info.gif" class="infoButton" alt=""></a>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/abstract-option.js
+
+
+
+
+/**
+ * @class AbstractOption
+ * @extends DisableableHtmlElement
+ * @abstract
+ */
+class AbstractOption extends DisableableHtmlElement {
+    constructor({
+        id,
+        variable,
+        description = '',
+        defaultValue = false,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        shallow = false,
+        reverse = false,
+        info = null,
+        disabled = false,
+        styleExtra = '',
+        align = 'left',
+    }) {
+        super({
+            id,
+            disabled,
+        });
+        this.variable = variable;
+        this.saveFunction = saveFunction;
+        this.getFunction = getFunction;
+        this.description = description;
+        this.info = info;
+        this.defaultValue = defaultValue;
+        this.inputId = `${this.id}-input`;
+        this.shallow = shallow;
+        this.reverse = reverse;
+        this.styleExtra = styleExtra;
+        this.colour = '#D0D1D9';
+        this.backgroundColour = '#00001C';
+        this.align = align;
+
+        if (this.disabled) {
+            this.colour = '#B5B5B5';
+            this.backgroundColour = '#CCCCCC';
+        }
+
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+
+        if (this.info !== null) {
+            this.infoElement = new InfoElement({
+                id: `${this.id}-info`,
+                description: this.info.description,
+                title: this.info.title,
+            });
+
+            this.addAfterRefreshHook(() => {
+                this.infoElement.afterRefreshElement();
+            });
+        } else {
+            this.infoElement = '';
+        }
+    }
+
+    toString() {
+        if (this.shallow) {
+            return `<td id='${this.id}'>${this.getInnerHTML()}<label>${this.description}</label>${this.infoElement}</td>`;
+        }
+        if (this.reverse) {
+            return `<tr id='${this.id}'><td>${this.getInnerHTML()}</td><td><label for='${this.inputId}'>${this.description}</label>${this.infoElement}</td></tr>`;
+        }
+
+        if (this.description === '') {
+            return `<tr id='${this.id}'><td col='2'>${this.getInnerHTML()}</td></tr>`;
+        }
+
+        return `<tr id='${this.id}'><td><label for='${this.inputId}'>${this.description}:</label>${this.infoElement}</td><td align='${this.align}'>${this.getInnerHTML()}</td></tr>`;
+    }
+
+    /**
+     * Get the inner HTML of the options element
+     * @abstract
+     * @function AbstractOption#getInnerHTML
+     * @returns {string} Inner HTML of the options element
+     */
+    getInnerHTML() {
+        return '';
+    }
+
+    /**
+     * Gets the last-saved value of the options element
+     * @function AbstractOption#getValue
+     * @returns {type} Last-saved value of the options element
+     */
+    getValue(overrideGetFunction = null) {
+        if (overrideGetFunction && typeof overrideGetFunction === 'function') {
+            return overrideGetFunction(`${PardusOptionsUtility.getVariableName(this.variable)}`, this.defaultValue);
+        }
+
+        return this.getFunction(`${PardusOptionsUtility.getVariableName(this.variable)}`, this.defaultValue);
+    }
+
+    /**
+     * Gets the current value of the options element
+     * @abstract
+     * @function AbstractOption#getCurrentValue
+     * @returns {type} Value of the options element
+     */
+    getCurrentValue() {
+        return null;
+    }
+
+    /**
+     * Gets the input element for the option
+     * @function AbstractOption#getInputElement
+     * @returns {object} Input element
+     */
+    getInputElement() {
+        return document.getElementById(this.inputId);
+    }
+
+    /**
+     * Resets the saved value of the options element to its default
+     * @function AbstractOption#resetValue
+     */
+    resetValue() {
+        this.saveFunction(`${PardusOptionsUtility.getVariableName(this.variable)}`, this.defaultValue);
+    }
+
+    /**
+     * Saves the current value of the options element
+     * @function AbstractOption#saveValue
+     */
+    saveValue(overrideSaveFunction = null) {
+        if (overrideSaveFunction && typeof overrideSaveFunction === 'function') {
+            overrideSaveFunction(`${PardusOptionsUtility.getVariableName(this.variable)}`, this.getCurrentValue());
+        } else if (!this.disabled) {
+            this.saveFunction(`${PardusOptionsUtility.getVariableName(this.variable)}`, this.getCurrentValue());
+        }
+    }
+
+    refreshStyle() {
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+        if (this.getInputElement()) {
+            this.getInputElement().setAttribute('style', this.style);
+        }
+    }
+
+    /**
+     * Disables the input element
+     * @function AbstractOption#disable
+     */
+    disable() {
+        this.setDisabled(true);
+        if (this.getInputElement()) {
+            this.getInputElement().setAttribute('disabled', '');
+            this.getInputElement().setAttribute('style', this.style);
+        }
+    }
+
+    /**
+     * Enables the input element
+     * @function AbstractOption#enable
+     */
+    enable() {
+        this.setDisabled(false);
+        if (this.getInputElement()) {
+            this.getInputElement().removeAttribute('disabled');
+            this.getInputElement().setAttribute('style', this.style);
+        }
+    }
+
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        if (this.disabled) {
+            this.colour = '#B5B5B5';
+            this.backgroundColour = '#CCCCCC';
+        } else {
+            this.colour = '#D0D1D9';
+            this.backgroundColour = '#00001C';
+        }
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+    }
+
+    loadValue(value) {
+        this.getInputElement().value = value;
+        this.saveValue();
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/boolean-option.js
+
+
+/**
+ * @class BooleanOption
+ * @extends AbstractOption
+ */
+class BooleanOption extends AbstractOption {
+    getInnerHTML() {
+        let checkedStatus = '';
+        if (this.getValue() === true) {
+            checkedStatus = ' checked';
+        }
+        return `<input id="${this.inputId}" type="checkbox"${checkedStatus} style="${this.style}" ${this.disabled ? 'disabled' : ''}>`;
+    }
+
+    /**
+     * Gets the current value of the boolean options element
+     * @function BooleanOption#getCurrentValue
+     * @returns {boolean} Value of the boolean options element
+     */
+    getCurrentValue() {
+        return this.getInputElement().checked;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/text-area-option.js
+
+
+
+class TextAreaOption extends AbstractOption {
+    constructor({
+        id,
+        variable,
+        description,
+        defaultValue = 0,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        disabled = false,
+        info = null,
+        rows = 3,
+        cols = 65,
+    }) {
+        super({
+            id,
+            variable,
+            description,
+            defaultValue,
+            saveFunction,
+            getFunction,
+            info,
+            disabled,
+            styleExtra: 'font-family: Helvetica, Arial, sans-serif;font-size:11px;',
+        });
+        this.rows = rows;
+        this.cols = cols;
+    }
+
+    getInnerHTML() {
+        return `<textarea id="${this.inputId}" width="100%" autocomplete="off" autocorrect="off" spellcheck="false" ${(this.rows === 0) ? '' : `rows="${this.rows}"`} ${(this.cols === 0) ? '' : `cols="${this.cols}"`} style="${this.style}" ${this.disabled ? 'disabled' : ''}>${this.getValue()}</textarea>`;
+    }
+
+    getCurrentValue() {
+        return this.getInputElement().value;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/numeric-option.js
+
+
+
+class NumericOption extends AbstractOption {
+    constructor({
+        id,
+        variable,
+        description,
+        defaultValue = 0,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        disabled = false,
+        min = 0,
+        max = 0,
+        step = 1,
+        info = null,
+    }) {
+        super({
+            id,
+            variable,
+            description,
+            defaultValue,
+            saveFunction,
+            getFunction,
+            info,
+            disabled,
+        });
+        this.minValue = min;
+        this.maxValue = max;
+        this.stepValue = step;
+    }
+
+    getInnerHTML() {
+        return `<input id="${this.inputId}" type="number" min="${this.minValue}" max="${this.maxValue}" step="${this.stepValue}" value="${this.getValue()}" style="${this.style}" ${this.disabled ? 'disabled' : ''}>`;
+    }
+
+    getCurrentValue() {
+        return this.getInputElement().value;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/abstract/abstract-toggle-button.js
+
+
+class AbstractToggleButton extends AbstractButton {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+        styleExtra = '',
+        actionText = '',
+        actionPerformedText = '',
+        toggleText = '',
+        togglePerformedText = '',
+        toggled = false,
+    }) {
+        super({
+            id,
+            premium,
+            disabled,
+            styleExtra,
+            actionText,
+            actionPerformedText,
+        });
+
+        this.toggled = toggled;
+
+        this.defaultText = actionText;
+        this.defaultPerformedText = actionPerformedText;
+        this.toggleText = toggleText;
+        this.togglePerformedText = togglePerformedText;
+
+        if (this.toggled) {
+            this.actionText = this.toggleText;
+            this.actionPerformedText = this.togglePerformedText;
+        }
+    }
+
+    toggle() {
+        this.toggled = !this.toggled;
+
+        if (this.toggled) {
+            this.actionText = this.toggleText;
+            this.actionPerformedText = this.togglePerformedText;
+        } else {
+            this.actionText = this.defaultText;
+            this.actionPerformedText = this.defaultPerformedText;
+        }
+
+        this.refreshElement();
+    }
+
+    toString() {
+        return `<input value="${this.actionText}" id="${this.id}" type="button" style="${this.style}" ${this.disabled ? 'disabled' : ''}>`;
+    }
+
+    displayClicked() {
+        this.getElement().setAttribute('disabled', 'true');
+        this.getElement().value = this.actionPerformedText;
+        this.getElement().setAttribute('style', 'color:green;background-color:silver');
+        setTimeout(() => {
+            this.getElement().removeAttribute('disabled');
+            this.getElement().value = this.actionText;
+            if (this.premium) {
+                this.getElement().setAttribute('style', 'color:#FFCC11');
+            } else {
+                this.getElement().removeAttribute('style');
+            }
+        }, 2000);
+    }
+
+    /**
+     * Add an event listener to the element
+     * @function HtmlElement#addEventListener
+     * @param {string} eventName Name of the event to listen for
+     * @param {function} listener Listener to call when the event fires
+     */
+    addClickListener(listener, opts = false) {
+        if (this.getElement() && !this.toggled) {
+            this.getElement().addEventListener('click', listener, opts);
+        }
+
+        if (opts && Object.hasOwn(opts, 'ephemeral') && opts.ephemeral) {
+            return;
+        }
+
+        this.addAfterRefreshHook(() => {
+            if (this.getElement() && !this.toggled) {
+                this.getElement().addEventListener('click', listener, opts);
+            }
+        });
+    }
+
+    /**
+     * Add an event listener to the element
+     * @function HtmlElement#addEventListener
+     * @param {string} eventName Name of the event to listen for
+     * @param {function} listener Listener to call when the event fires
+     */
+    addToggleClickListener(listener, opts = false) {
+        if (this.getElement() && this.toggled) {
+            this.getElement().addEventListener('click', listener, opts);
+        }
+
+        if (opts && Object.hasOwn(opts, 'ephemeral') && opts.ephemeral) {
+            return;
+        }
+
+        this.addAfterRefreshHook(() => {
+            if (this.getElement() && this.toggled) {
+                this.getElement().addEventListener('click', listener, opts);
+            }
+        });
+    }
+
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        if (this.disabled) {
+            this.colour = '#B5B5B5';
+            this.backgroundColour = '#CCCCCC';
+        } else {
+            if (this.premium) {
+                this.colour = '#FFCC11';
+            } else {
+                this.colour = '#D0D1D9';
+            }
+            this.backgroundColour = '#00001C';
+        }
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+    }
+
+    disable() {
+        this.setDisabled(true);
+        if (this.getElement()) {
+            this.getElement().setAttribute('disabled', 'true');
+            this.getElement().setAttribute('style', this.style);
+        }
+    }
+
+    enable() {
+        this.setDisabled(false);
+        if (this.getElement()) {
+            this.getElement().removeAttribute('disabled');
+            this.getElement().setAttribute('style', this.style);
+        }
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/key-down-set-key-button.js
+
+
+class SetKeyButton extends AbstractToggleButton {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+    }) {
+        super({
+            id,
+            premium,
+            disabled,
+            actionText: 'Set Key',
+            toggleText: 'Cancel',
+            styleExtra: 'width:58px;',
+        });
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/key-down-disable-button.js
+
+
+class DisableButton extends AbstractToggleButton {
+    constructor({
+        id,
+        premium = false,
+        disabled = false,
+        toggled = false,
+    }) {
+        super({
+            id,
+            premium,
+            disabled,
+            toggled,
+            actionText: 'Disable',
+            toggleText: 'Enable',
+            styleExtra: 'width:58px;',
+        });
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/key-down-option.js
+
+
+
+
+
+class KeyDownOption extends AbstractOption {
+    constructor({
+        id,
+        variable,
+        description = '',
+        defaultValue = false,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        shallow = false,
+        reverse = false,
+        info = null,
+    }) {
+        const currValue = getFunction(`${PardusOptionsUtility.getVariableName(variable)}`, defaultValue);
+        const currDisabled = Object.hasOwn(currValue, 'disabled') && currValue.disabled;
+        super({
+            id,
+            variable,
+            description,
+            defaultValue,
+            saveFunction,
+            getFunction,
+            shallow,
+            reverse,
+            info,
+            disabled: currDisabled,
+            styleExtra: 'width: 20px;padding: 2px;text-align: center;margin: 2px 7px 2px;',
+        });
+        this.setKeyButton = new SetKeyButton({
+            id: `${this.id}-setkey`,
+            disabled: currDisabled,
+        });
+        this.disableButton = new DisableButton({
+            id: `${this.id}-disable`,
+            toggled: currDisabled,
+        });
+        this.boundCaptureKeyListener = this.captureKeyListener.bind(this);
+        this.setKeyButton.addClickListener(() => {
+            document.getElementById(`${this.inputId}-key`).value = '_';
+            document.getElementById(`${this.inputId}-key`).style.color = 'lime';
+            document.addEventListener('keydown', this.boundCaptureKeyListener, {
+                once: true,
+                ephemeral: true,
+            });
+            this.setKeyButton.toggle();
+            this.disableButton.disable();
+        });
+        this.setKeyButton.addToggleClickListener(() => {
+            document.removeEventListener('keydown', this.boundCaptureKeyListener);
+            this.setKeyButton.toggle();
+            this.disableButton.enable();
+            this.refreshElement();
+        });
+        this.disableButton.addClickListener(() => {
+            this.disable();
+            this.disableButton.toggle();
+        });
+        this.disableButton.addToggleClickListener(() => {
+            this.enable();
+            this.disableButton.toggle();
+        });
+        this.addAfterRefreshHook(() => {
+            this.setKeyButton.afterRefreshElement();
+            this.disableButton.afterRefreshElement();
+        });
+    }
+
+    captureKeyListener(event) {
+        this.getInputElement().value = JSON.stringify({
+            code: event.keyCode,
+            key: event.code,
+            description: event.key,
+        });
+        document.getElementById(`${this.inputId}-key`).value = this.getCurrentKeyDescription();
+        document.getElementById(`${this.inputId}-key`).style.color = '#D0D1D9';
+        this.disableButton.enable();
+        this.setKeyButton.toggle();
+    }
+
+    getInnerHTML() {
+        let keyPressHtml = `<input id='${this.inputId}' type='text' hidden value='${JSON.stringify(this.getValue())}'>`;
+        keyPressHtml += `<table width='100%' style='border-collapse: collapse;'><tbody><tr><td align="left"><input id='${this.inputId}-key' type='text' cols='1' maxlength='1' readonly value="${this.getKeyDescription()}" style="${this.style}" ${this.disabled ? 'disabled' : ''}/></td><td align="right">${this.setKeyButton}</td><td align="right" style='padding-right: 0px;'>${this.disableButton}</td></tr></tbody></table>`;
+        return keyPressHtml;
+    }
+
+    /**
+     * Disables the input element
+     * @function AbstractOption#disable
+     */
+    disable() {
+        this.setDisabled(true);
+        document.getElementById(`${this.inputId}-key`).removeAttribute('disabled');
+        document.getElementById(`${this.inputId}-key`).setAttribute('style', this.style);
+
+        this.getInputElement().value = JSON.stringify({
+            ...this.getCurrentValue(),
+            disabled: true,
+        });
+    }
+
+    /**
+     * Enables the input element
+     * @function AbstractOption#enable
+     */
+    enable() {
+        this.setDisabled(false);
+        document.getElementById(`${this.inputId}-key`).removeAttribute('disabled');
+        document.getElementById(`${this.inputId}-key`).setAttribute('style', this.style);
+
+        const newValue = this.getCurrentValue();
+        delete newValue.disabled;
+        this.getInputElement().value = JSON.stringify(newValue);
+    }
+
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        if (this.disabled) {
+            this.colour = '#B5B5B5';
+            this.backgroundColour = '#CCCCCC';
+            this.setKeyButton.disable();
+        } else {
+            this.colour = '#D0D1D9';
+            this.backgroundColour = '#00001C';
+            this.setKeyButton.enable();
+        }
+        this.style = `color: ${this.colour};background-color: ${this.backgroundColour};${this.styleExtra}`;
+    }
+
+    saveValue(overrideSaveFunction = null) {
+        if (overrideSaveFunction && typeof overrideSaveFunction === 'function') {
+            overrideSaveFunction(`${PardusOptionsUtility.getVariableName(this.variable)}`, this.getCurrentValue());
+        } else {
+            this.saveFunction(`${PardusOptionsUtility.getVariableName(this.variable)}`, this.getCurrentValue());
+        }
+    }
+
+    getKey() {
+        return this.getValue().key;
+    }
+
+    getKeyDescription() {
+        return this.getValue().description;
+    }
+
+    getKeyCode() {
+        return this.getValue().code;
+    }
+
+    isDisabled() {
+        const value = this.getValue();
+
+        if (Object.hasOwn(value, 'disabled') && value.disabled) {
+            return true;
+        }
+
+        return false;
+    }
+
+    getCurrentKey() {
+        return this.getCurrentValue().key;
+    }
+
+    getCurrentKeyDescription() {
+        return this.getCurrentValue().description;
+    }
+
+    getCurrentCode() {
+        return this.getCurrentValue().code;
+    }
+
+    getCurrentValue() {
+        return JSON.parse(this.getInputElement().value);
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/select-option.js
+
+
+
+class SelectOption extends AbstractOption {
+    constructor({
+        id,
+        variable,
+        description,
+        defaultValue = null,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        disabled = false,
+        info = null,
+        inheritStyle = false,
+        options = [],
+    }) {
+        super({
+            id,
+            variable,
+            description,
+            defaultValue,
+            saveFunction,
+            getFunction,
+            info,
+            disabled,
+            align: 'right',
+        });
+        this.options = options;
+
+        if (inheritStyle) {
+            this.addEventListener('change', () => {
+                this.updateSelectStyle();
+            });
+        }
+    }
+
+    getInnerHTML() {
+        let selectHtml = '';
+        const savedValue = this.getValue();
+        let hasSelected = false;
+        let selectStyle = '';
+        for (const option of this.options) {
+            const style = (option.style) ? ` style="${option.style}"` : '';
+            if (!hasSelected && (option.value === savedValue || (option.default && option.default === true && !savedValue))) {
+                selectHtml += `<option value=${option.value}${style} selected>${option.text}</option>`;
+                hasSelected = true;
+                selectStyle = (option.style) ? ` style="${option.style}"` : '';
+            } else {
+                selectHtml += `<option value=${option.value}${style}>${option.text}</option>`;
+            }
+        }
+
+        selectHtml = `<select id="${this.inputId}"${selectStyle} style="${this.style}" ${this.disabled ? 'disabled' : ''}>${selectHtml}`;
+
+        return selectHtml;
+    }
+
+    updateSelectStyle() {
+        const currentStyle = this.getInputElement().selectedOptions[0].getAttribute('style');
+        this.getInputElement().setAttribute('style', currentStyle);
+    }
+
+    getOptions() {
+        return this.options;
+    }
+
+    setOptions(options = []) {
+        this.options = options;
+    }
+
+    getCurrentValue() {
+        return this.getInputElement().value;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options/grouped-options.js
+
+
+
+
+class GroupedOptions extends HtmlElement {
+    constructor({
+        id,
+        description,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+    }) {
+        super(id);
+        this.description = description;
+        this.saveFunction = saveFunction;
+        this.getFunction = getFunction;
+        this.options = [];
+    }
+
+    toString() {
+        return `<tr id="${this.id}"><td>${this.description}</td><td>${this.getInnerHTML()}</td></tr>`;
+    }
+
+    getInnerHTML() {
+        let html = '<table><tbody><tr>';
+        for (const option of this.options) {
+            html += option;
+        }
+        html += '</tr></tbody></table>';
+        return html;
+    }
+
+    saveValue() {
+        for (const option of this.options) {
+            option.saveValue();
+        }
+    }
+
+    addBooleanOption({
+        variable,
+        description,
+        defaultValue = false,
+        saveFunction = this.saveFunction,
+        getFunction = this.getFunction,
+    }) {
+        const booleanOptions = {
+            id: `${this.id}-option-${this.options.length}`,
+            variable,
+            description,
+            defaultValue,
+            saveFunction,
+            getFunction,
+            shallow: true,
+        };
+
+        const newBooleanOption = new BooleanOption(booleanOptions);
+
+        this.options.push(newBooleanOption);
+        this.refreshElement();
+        return newBooleanOption;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options-group.js
+
+
+
+
+
+
+
+
+
+class OptionsGroup extends DisableableHtmlElement {
+    constructor({
+        id,
+        premium = false,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        disabled = false,
+    }) {
+        super({
+            id,
+            disabled,
+        });
+        this.premium = premium;
+        this.saveFunction = saveFunction;
+        this.getFunction = getFunction;
+        this.options = [];
+        this.disabled = disabled;
+        this.addAfterRefreshHook(() => {
+            for (const option of this.options) {
+                option.afterRefreshElement();
+            }
+        });
+    }
+
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        for (const option of this.options) {
+            option.setDisabled(disabled);
+        }
+    }
+
+    addBooleanOption(args) {
+        const newOption = new BooleanOption({
+            id: `${this.id}-option-${this.options.length}`,
+            disabled: this.disabled,
+            ...args,
+        });
+        this.options.push(newOption);
+        return newOption;
+    }
+
+    addTextAreaOption(args) {
+        const newOption = new TextAreaOption({
+            id: `${this.id}-option-${this.options.length}`,
+            disabled: this.disabled,
+            ...args,
+        });
+        this.options.push(newOption);
+        return newOption;
+    }
+
+    addNumericOption(args) {
+        const newOption = new NumericOption({
+            id: `${this.id}-option-${this.options.length}`,
+            disabled: this.disabled,
+            ...args,
+        });
+        this.options.push(newOption);
+        return newOption;
+    }
+
+    addKeyDownOption(args) {
+        const newOption = new KeyDownOption({
+            id: `${this.id}-option-${this.options.length}`,
+            disabled: this.disabled,
+            ...args,
+        });
+        this.options.push(newOption);
+        return newOption;
+    }
+
+    addSelectOption(args) {
+        const newOption = new SelectOption({
+            id: `${this.id}-option-${this.options.length}`,
+            disabled: this.disabled,
+            ...args,
+        });
+        this.options.push(newOption);
+        return newOption;
+    }
+
+    addGroupedOption({
+        description,
+        saveFunction = this.saveFunction,
+        getFunction = this.getFunction,
+    }) {
+        const newOption = new GroupedOptions({
+            id: `${this.id}-option-${this.options.length}`,
+            disabled: this.disabled,
+            description,
+            saveFunction,
+            getFunction,
+        });
+        this.options.push(newOption);
+        return newOption;
+    }
+
+    toString() {
+        // If no options have been defined, then don't add any elements
+        if (this.options.length === 0) {
+            return `<tr id="${this.id}" style="display: none;"><td><table width="100%"><tbody></tbody></table></td></tr>`;
+        }
+        return `<tr id="${this.id}"><td><table width="100%"><tbody>${this.options.join('')}</tbody></table></td></tr>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/description-element.js
+
+
+/**
+ * Controls the description for a specific OptionsBox, only one description per OptionsBox permitted
+ * @private
+ */
+class DescriptionElement extends HtmlElement {
+    constructor({
+        id,
+        description = '',
+        imageLeft = '',
+        imageRight = '',
+    }) {
+        super(id);
+        this.backContainer = '';
+        this.description = description;
+        this.imageLeft = imageLeft;
+        this.imageRight = imageRight;
+        this.alignment = '';
+        this.frontContainer = {
+            styling: 'style="display: none;"',
+            id: '',
+            setId(idToSet) {
+                this.id = idToSet;
+            },
+            setStyle(style) {
+                this.styling = `style="${style}"`;
+            },
+            toString() {
+                return '';
+            },
+        };
+        this.frontContainer.setId(id);
+    }
+
+    addImageLeft(imageSrc) {
+        this.imageLeft = imageSrc;
+        this.refreshElement();
+    }
+
+    addImageRight(imageSrc) {
+        this.imageRight = imageSrc;
+        this.refreshElement();
+    }
+
+    setDescription(description) {
+        this.description = description;
+        this.refreshElement();
+    }
+
+    setAlignment(alignment) {
+        this.alignment = alignment;
+        this.refreshElement();
+    }
+
+    toString() {
+        let html = `<tr id=${this.id} style=''><td><table><tbody><tr>`;
+
+        if (this.imageLeft && this.imageLeft !== '') {
+            html = `${html}<td><img src="${this.imageLeft}"></td>`;
+        }
+
+        // If there's no specific alignment, work out the most ideal one to use
+        if (this.alignment === '') {
+            if (this.imageLeft === '' && this.imageRight === '') {
+                html = `${html}<td align="left">${this.description}</td>`;
+            } else {
+                html = `${html}<td align="center">${this.description}</td>`;
+            }
+        } else {
+            html = `${html}<td align="${this.alignment}">${this.description}</td>`;
+        }
+
+        if (this.imageRight && this.imageRight !== '') {
+            html = `${html}<td><img src="${this.imageRight}"></td>`;
+        }
+
+        return `${html}</tr></tbody></table></td></tr>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options-box.js
+
+
+
+
+
+
+
+class OptionsBox extends DisableableHtmlElement {
+    constructor({
+        id,
+        heading,
+        premium = false,
+        description = '',
+        imageLeft = '',
+        imageRight = '',
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        refresh = true,
+        resetButton = false,
+        presets = 0,
+        disabled = false,
+    }) {
+        super({
+            id,
+            disabled,
+        });
+        this.heading = heading;
+        this.premium = premium;
+        this.saveFunction = saveFunction;
+        this.getFunction = getFunction;
+        this.refresh = refresh;
+        this.resetButton = resetButton;
+        this.disabled = disabled;
+
+        const headerHtml = (premium) ? '<th class="premium">' : '<th>';
+        this.frontContainer = `<form id="${this.id}" action="none"><table style="background:url(${PardusOptionsUtility.getImagePackUrl()}bgd.gif)" width="100%" cellpadding="3" align="center"><tbody><tr>${headerHtml}${heading}</th></tr>`;
+        this.backContainer = '</tbody></table></form>';
+        this.innerHtml = '';
+        this.description = new DescriptionElement({
+            id: `${this.id}-description`,
+            description,
+            imageLeft,
+            imageRight,
+        });
+        this.optionsGroup = new OptionsGroup({
+            id: `${this.id}-options-group`,
+            premium,
+            saveFunction,
+            getFunction,
+            disabled,
+        });
+        this.saveButtonRow = new SaveButtonRow({
+            id: `${this.id}-save`,
+            premium,
+            resetButton,
+            disabled,
+        });
+        this.presets = new Presets({
+            id: `${this.id}-presets`,
+            premium,
+            presets,
+            disabled,
+        });
+        this.addAfterRefreshHook((opts) => {
+            if (opts.maintainRefreshStatus) {
+                return;
+            }
+            this.refresh = true;
+        });
+        this.addAfterRefreshHook(() => {
+            this.optionsGroup.afterRefreshElement();
+            this.saveButtonRow.afterRefreshElement();
+        });
+        this.addAfterRefreshHook(() => {
+            this.setFunctions();
+        });
+    }
+
+    toString() {
+        if (this.optionsGroup.options.length === 0) {
+            return this.frontContainer + this.description + this.innerHtml + this.optionsGroup + this.backContainer;
+        }
+        return this.frontContainer + this.description + this.innerHtml + this.optionsGroup + this.saveButtonRow + this.presets + this.backContainer;
+    }
+
+    setFunctions() {
+        if (this.optionsGroup.options.length !== 0) {
+            this.saveButtonRow.addSaveEventListener(() => {
+                for (const option of this.optionsGroup.options) {
+                    option.saveValue();
+                }
+                this.saveButtonRow.displaySaved();
+
+                const event = new Event('save');
+                this.getElement().dispatchEvent(event);
+            });
+            this.saveButtonRow.addResetEventListener(() => {
+                for (const option of this.optionsGroup.options) {
+                    option.resetValue();
+                }
+                this.saveButtonRow.displayReset();
+                this.optionsGroup.refreshElement();
+
+                const event = new Event('reset');
+                this.getElement().dispatchEvent(event);
+            });
+        }
+
+        this.presets.setFunctions(this.optionsGroup.options);
+    }
+
+    /**
+     * Allows disabling or enabling this element and all nested elements without refreshing
+     * @function OptionsBox#setDisabled
+     */
+    setDisabled(disabled = false) {
+        this.disabled = disabled;
+        this.optionsGroup.setDisabled(disabled);
+        this.saveButtonRow.setDisabled(disabled);
+        this.presets.setDisabled(disabled);
+    }
+
+    addSaveEventListener(func) {
+        return this.saveButtonRow.addSaveEventListener(func);
+    }
+
+    addBooleanOption({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newOption = this.optionsGroup.addBooleanOption(args);
+        if (refresh) {
+            this.refreshElement();
+        }
+        return newOption;
+    }
+
+    addTextAreaOption({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newOption = this.optionsGroup.addTextAreaOption(args);
+        if (refresh) {
+            this.refreshElement();
+        }
+        return newOption;
+    }
+
+    addNumericOption({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newOption = this.optionsGroup.addNumericOption(args);
+        if (refresh) {
+            this.refreshElement();
+        }
+        return newOption;
+    }
+
+    addKeyDownOption({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newOption = this.optionsGroup.addKeyDownOption(args);
+        if (refresh) {
+            this.refreshElement();
+        }
+        return newOption;
+    }
+
+    addSelectOption({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newOption = this.optionsGroup.addSelectOption(args);
+        if (refresh) {
+            this.refreshElement();
+        }
+        return newOption;
+    }
+
+    addGroupedOption({
+        description,
+        saveFunction = this.saveFunction,
+        getFunction = this.getFunction,
+        refresh = this.refresh,
+    }) {
+        const groupedOptions = {
+            description,
+            saveFunction,
+            getFunction,
+        };
+
+        const newOption = this.optionsGroup.addGroupedOption(groupedOptions);
+        if (refresh) {
+            this.refreshElement();
+        }
+        return newOption;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/options-content.js
+
+
+
+
+class OptionsContent extends HtmlElement {
+    constructor({
+        id,
+        content = null,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        refresh = true,
+        active = true,
+    }) {
+        super(id);
+        this.content = content;
+        this.saveFunction = saveFunction;
+        this.getFunction = getFunction;
+        this.leftBoxes = [];
+        this.rightBoxes = [];
+        this.topBoxes = [];
+        this.bottomBoxes = [];
+        this.refresh = refresh;
+        this.active = active;
+        this.addAfterRefreshHook((opts) => {
+            if (opts.maintainRefreshStatus) {
+                return;
+            }
+            this.refresh = true;
+        });
+        this.addAfterRefreshHook(() => {
+            for (const box of this.topBoxes) {
+                box.afterRefreshElement();
+            }
+            for (const box of this.leftBoxes) {
+                box.afterRefreshElement();
+            }
+            for (const box of this.rightBoxes) {
+                box.afterRefreshElement();
+            }
+            for (const box of this.bottomBoxes) {
+                box.afterRefreshElement();
+            }
+        });
+    }
+
+    addBox({
+        top = false,
+        bottom = false,
+        ...args
+    }) {
+        let newBox = null;
+        if (top) {
+            newBox = this.addBoxTop(args);
+        } else if (bottom) {
+            newBox = this.addBoxBottom(args);
+        } else if (this.leftBoxes.length <= this.rightBoxes.length) {
+            newBox = this.addBoxLeft(args);
+        } else {
+            newBox = this.addBoxRight(args);
+        }
+        return newBox;
+    }
+
+    addBoxBottom({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newBox = new OptionsBox({
+            id: `${this.id}-bottom-box-${this.bottomBoxes.length}`,
+            refresh,
+            ...args,
+        });
+
+        this.bottomBoxes.push(newBox);
+
+        if (refresh) {
+            this.refreshElement();
+        }
+
+        return newBox;
+    }
+
+    addBoxTop({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newBox = new OptionsBox({
+            id: `${this.id}-top-box-${this.topBoxes.length}`,
+            refresh,
+            ...args,
+        });
+
+        this.topBoxes.push(newBox);
+
+        if (refresh) {
+            this.refreshElement();
+        }
+
+        return newBox;
+    }
+
+    addBoxLeft({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newBox = new OptionsBox({
+            id: `${this.id}-left-box-${this.leftBoxes.length}`,
+            refresh,
+            ...args,
+        });
+
+        this.leftBoxes.push(newBox);
+
+        if (refresh) {
+            this.refreshElement();
+        }
+
+        return newBox;
+    }
+
+    addBoxRight({
+        refresh = this.refresh,
+        ...args
+    }) {
+        const newBox = new OptionsBox({
+            id: `${this.id}-right-box-${this.rightBoxes.length}`,
+            refresh,
+            ...args,
+        });
+
+        this.rightBoxes.push(newBox);
+
+        if (refresh) {
+            this.refreshElement();
+        }
+
+        return newBox;
+    }
+
+    addPremiumBox(args) {
+        return this.addBox({
+            premium: true,
+            ...args,
+        });
+    }
+
+    addPremiumBoxLeft(args) {
+        return this.addBoxLeft({
+            premium: true,
+            ...args,
+        });
+    }
+
+    addPremiumBoxRight(args) {
+        return this.addBoxRight({
+            premium: true,
+            ...args,
+        });
+    }
+
+    toString() {
+        if (this.content !== null) {
+            return this.content;
+        }
+        const hidden = this.active ? '' : 'hidden';
+        return `<tr id="${this.id}" ${hidden}><td><table width="100%" align="center"><tbody><tr><td id="${this.id}-top" colspan="3" valign="top">${this.topBoxes.join('<br><br>')}${(this.topBoxes.length > 0) ? '<br><br>' : ''}</td></tr><tr><td id="${this.id}-left" width="350" valign="top">${this.leftBoxes.join('<br><br>')}</td><td width="40"></td><td id="${this.id}-right" width="350" valign="top">${this.rightBoxes.join('<br><br>')}</td></tr><tr><td id="${this.id}-bottom" colspan="3" valign="top">${(this.bottomBoxes.length > 0) ? '<br><br>' : ''}${this.bottomBoxes.join('<br><br>')}</td></tr></tbody></table></td></tr>`;
+    }
+
+    setActive() {
+        this.active = true;
+        this.getElement().removeAttribute('hidden');
+    }
+
+    setInactive() {
+        this.active = false;
+        this.getElement().setAttribute('hidden', '');
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/tabs/sub-tab.js
+
+
+
+
+class SubTab {
+    constructor({
+        id,
+        label,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        refresh = true,
+        active = false,
+        padding,
+    }) {
+        this.id = id;
+        this.active = active;
+        this.label = new TabLabel({
+            id: `${this.id}-label`,
+            heading: label,
+            active: this.active,
+            padding,
+        });
+        this.content = new OptionsContent({
+            id: `${this.id}-content`,
+            saveFunction,
+            getFunction,
+            refresh,
+            active: this.active,
+        });
+    }
+
+    setActive() {
+        if (this.active === true) {
+            return;
+        }
+        this.active = true;
+        this.label.setActive();
+        this.content.setActive();
+    }
+
+    setInactive() {
+        if (this.active === false) {
+            return;
+        }
+        this.active = false;
+        this.label.setInactive();
+        this.content.setInactive();
+    }
+
+    afterRefreshElement(opts) {
+        this.label.afterRefreshElement(opts);
+        this.content.afterRefreshElement(opts);
+    }
+
+    getLabel() {
+        return this.label;
+    }
+
+    getContent() {
+        return this.content;
+    }
+
+    toString() {
+        return this.content.toString();
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/version-row.js
+/*eslint camelcase: ["error", {allow: ["GM_info"]}]*/
+
+
+class VersionRow extends HtmlElement {
+    constructor({
+        id,
+    }) {
+        super(id);
+    }
+
+    toString() {
+        return `<tr id="${this.id}"><td align="right" style="font-size:11px;color:#696988;padding-right:7px;padding-top:5px">Version ${GM_info.script.version}</td></tr>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/tabs/tab-content.js
+
+
+
+
+
+
+class TabContent extends HtmlElement {
+    constructor({
+        id,
+        heading,
+        defaultLabel = 'Default tab',
+        content = null,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        refresh = true,
+    }) {
+        super(id);
+        this.heading = heading;
+        this.content = content;
+        this.saveFunction = saveFunction;
+        this.getFunction = getFunction;
+        this.subTabsRow = new TabsRow({
+            id: `${this.id}-tabsrow`,
+        });
+        this.refresh = refresh;
+        this.subTabs = [];
+        this.defaultTab = this.addSubTab({
+            label: defaultLabel,
+            saveFunction: this.saveFunction,
+            getFunction: this.getFunction,
+            refresh: false,
+            active: true,
+        });
+        this.versionRow = new VersionRow({
+            id: `${this.id}-versionrow`,
+        });
+        this.addAfterRefreshHook((opts) => {
+            if (opts.maintainRefreshStatus) {
+                return;
+            }
+            this.refresh = true;
+        });
+        this.addAfterRefreshHook((opts) => {
+            if (!this.refresh && opts.maintainRefreshStatus) {
+                return;
+            }
+            for (const subTab of this.subTabs) {
+                subTab.afterRefreshElement(opts);
+            }
+        });
+    }
+
+    addSubTab({
+        label,
+        saveFunction = this.saveFunction,
+        getFunction = this.getFunction,
+        refresh = this.refresh,
+        active = false,
+        padding,
+    }) {
+        const newSubTab = new SubTab({
+            id: `${this.id}-subtab-${this.subTabs.length}`,
+            label,
+            saveFunction,
+            getFunction,
+            refresh,
+            active,
+            padding,
+        });
+
+        const newSubTabContent = newSubTab.getContent();
+        const newSubTabLabel = newSubTab.getLabel();
+
+        this.subTabsRow.addLabel({
+            label: newSubTabLabel,
+        });
+
+        this.subTabs.push(newSubTab);
+
+        newSubTabLabel.addEventListener('click', () => {
+            this.setActiveSubTab(newSubTab.id);
+        });
+
+        if (refresh) {
+            this.refreshElement();
+        }
+
+        return newSubTabContent;
+    }
+
+    setActiveSubTab(subTabId) {
+        for (const subTab of this.subTabs) {
+            if (subTab.id === subTabId) {
+                subTab.setActive();
+            } else {
+                subTab.setInactive();
+            }
+        }
+    }
+
+    addBox(args) {
+        return this.defaultTab.addBox(args);
+    }
+
+    addBoxBottom(args) {
+        return this.defaultTab.addBoxBottom(args);
+    }
+
+    addBoxTop(args) {
+        return this.defaultTab.addBoxTop(args);
+    }
+
+    addBoxLeft(args) {
+        return this.defaultTab.addBoxLeft(args);
+    }
+
+    addBoxRight(args) {
+        return this.defaultTab.addBoxRight(args);
+    }
+
+    addPremiumBox(args) {
+        return this.defaultTab.addPremiumBox(args);
+    }
+
+    addPremiumBoxLeft(args) {
+        return this.defaultTab.addPremiumBoxLeft(args);
+    }
+
+    addPremiumBoxRight(args) {
+        return this.defaultTab.addPremiumBoxRight(args);
+    }
+
+    setActive() {
+        this.getElement().removeAttribute('hidden');
+    }
+
+    setInactive() {
+        this.getElement().setAttribute('hidden', '');
+    }
+
+    toString() {
+        if (this.content !== null) {
+            return this.content;
+        }
+        const hidden = (this.subTabs.length > 1) ? '' : 'hidden';
+        const innerStyle = (this.subTabs.length > 1) ? 'class="tabstyle"' : '';
+        return `<table id="${this.id}" hidden class="tabstyle" style="background:url(${PardusOptionsUtility.getImagePackUrl()}bgdark.gif)" cellspacing="0" cellpadding="0" border="0"><tbody><tr><td><div align="center"><h1>${this.heading}</h1></div></td></tr><tr><td><table width="100%" align="center" cellspacing="0" cellpadding="0" border="0"><tbody><tr><td><table cellspacing="0" cellpadding="0" border="0" ${hidden}><tbody>${this.subTabsRow}</tbody></table></td></tr><tr><td><table ${innerStyle} cellspacing="0" cellpadding="0" border="0"><tbody>${this.subTabs.join('')}</tbody></table></td></tr></tbody></table></td></tr>${this.versionRow}</tbody></table>`;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/tabs/tab.js
+
+
+
+
+class Tab {
+    constructor({
+        id,
+        heading,
+        content = null,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        refresh = true,
+        defaultLabel,
+    }) {
+        this.id = id;
+        this.heading = heading;
+        this.content = new TabContent({
+            id: `options-content-${this.id}`,
+            heading,
+            content,
+            saveFunction,
+            getFunction,
+            refresh,
+            defaultLabel,
+        });
+        this.label = new TabLabel({
+            id: `${this.id}-label`,
+            heading,
+        });
+        this.active = false;
+        this.saveFunction = saveFunction;
+        this.getFunction = getFunction;
+    }
+
+    addListeners() {
+        this.getLabel().addEventListener('click', () => PardusOptionsUtility.setActiveTab(this.id), true);
+        window.addEventListener('storage', () => {
+            if (window.localStorage.getItem('pardusOptionsOpenTab') === this.id && !this.active) {
+                this.setActive();
+            }
+            if (window.localStorage.getItem('pardusOptionsOpenTab') !== this.id && this.active) {
+                this.setInactive();
+            }
+        });
+    }
+
+    setActive() {
+        this.label.setActive();
+        this.content.setActive();
+        this.active = true;
+    }
+
+    setInactive() {
+        this.label.setInactive();
+        this.content.setInactive();
+        this.active = false;
+    }
+
+    getContent() {
+        return this.content;
+    }
+
+    getLabel() {
+        return this.label;
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/classes/pardus-options.js
+
+
+
+
+
+
+/**
+ * @module PardusOptions
+ */
+class PardusOptions {
+    /**
+     *  @ignore
+     */
+    static init() {
+        if (document.getElementById('options-area')) {
+            return;
+        }
+
+        // Get the normal Pardus options
+        const defaultPardusOptionsContent = document.getElementsByTagName('table')[2];
+
+        // Identify the containing HTML element to house all the options HTML
+        const pardusMainElement = defaultPardusOptionsContent.parentNode;
+
+        // Give the Pardus options an appropriate id, and remove it from the DOM
+        defaultPardusOptionsContent.setAttribute('id', 'options-content-pardus-default');
+        defaultPardusOptionsContent.setAttribute('class', 'tabstyle');
+        defaultPardusOptionsContent.remove();
+
+        // Add this object to the DOM within the main containing element
+        pardusMainElement.appendChild(this.getPardusOptionsElement());
+
+        const defaultTipBox = this.createDefaultTipBox();
+        pardusMainElement.appendChild(defaultTipBox.toElement());
+
+        // Add the Pardus options back in
+        this.addTab({
+            id: 'pardus-default',
+            heading: 'Pardus Options',
+            content: defaultPardusOptionsContent.outerHTML,
+            refresh: false,
+        });
+
+        // Set the Pardus options tab to be active by default
+        PardusOptionsUtility.setActiveTab('pardus-default');
+    }
+
+    /**
+     *  @deprecated Get the version of the Pardus Options Library running
+     */
+    static version() {
+        return 1.6;
+    }
+
+    /**
+     * @ignore
+     */
+    static createDefaultTipBox() {
+        return new TipBox({
+            id: 'options-default-tip-box',
+        });
+    }
+
+    /**
+     * @ignore
+     */
+    static getDefaultTipBox() {
+        const defaultTipBox = this.createDefaultTipBox();
+        defaultTipBox.refreshElement();
+        return defaultTipBox;
+    }
+
+    /**
+     * @ignore
+     */
+    static getTabsElement() {
+        return new TabsElement({
+            id: 'options-tabs',
+        });
+    }
+
+    /**
+     * @ignore
+     */
+    static getContentElement() {
+        return new ContentsArea({
+            id: 'options-content',
+        });
+    }
+
+    /**
+     * @ignore
+     */
+    static getPardusOptionsElement() {
+        const template = document.createElement('template');
+        template.innerHTML = `<table id="options-area" cellspacing="0" cellpadding="0" border="0"><tbody><tr cellspacing="0" cellpadding="0" border="0"><td>${this.getTabsElement()}</td></tr>${this.getContentElement()}</tbody></table>`;
+        return template.content.firstChild;
+    }
+
+    /**
+     * Add a tab on the Options page on Pardus to show your options
+     * @param {Object} params An object containing parameter values
+     * @param {string} params.id A namespace identifier to identify the tab from other tabs. Must be globally unique.
+     * @param {string} params.heading Text to display in the tab
+     * @param {string} params.content HTML to embed within the tab.
+     * @returns {TabContent} Tab
+     */
+    static addTab({
+        id,
+        heading,
+        content = null,
+        saveFunction = PardusOptionsUtility.defaultSaveFunction,
+        getFunction = PardusOptionsUtility.defaultGetFunction,
+        refresh = true,
+        defaultLabel,
+    }) {
+        const newTab = new Tab({
+            id,
+            heading,
+            content,
+            saveFunction,
+            getFunction,
+            refresh,
+            defaultLabel,
+        });
+
+        // Check for id uniqueness
+        if (document.getElementById(newTab.id)) {
+            throw new Error(`Tab '${newTab.id}' already exists!`);
+        }
+
+        this.getTabsElement().addLabel({
+            label: newTab.getLabel(),
+        });
+
+        this.getContentElement().addContent({
+            content: newTab.getContent(),
+        });
+
+        newTab.addListeners();
+
+        return newTab.getContent();
+    }
+}
+
+;// ./node_modules/pardus-options-library/src/index.js
+
+
+
+/**
+  *  Add the Options object to the page for all scripts to use
+  */
+if (document.location.pathname === '/options.php') {
+    PardusOptions.init();
+}
+
+PardusOptionsUtility.addGlobalListeners();
+
+
+
+;// ./src/classes/main/commands-box.js
+
+
+class CommandsBox {
+    constructor() {
+        let container = document.getElementById('quickcommands-commands');
+
+        if (!container) {
+            container = document.createElement('div');
+            container.setAttribute('id', 'quickcommands-commands');
+            container.setAttribute('style', 'position:relative; top:6px; margin-top: 5px; margin-bottom: 7px;');
+
+            if (document.getElementById('aCmdPlanet')) {
+                this.addPlanetLinks(container);
+            }
+
+            if (document.getElementById('aCmdStarbase')) {
+                this.addStarbaseLinks(container);
+            }
+
+            document.addPardusKeyDownListener('enter_tradescreen_key', {code: 84}, (event) => {
+                if (document.getElementById('aCmdPlanet')) {
+                    window.location.assign(`${window.location.origin}/planet_trade.php`);
+                } else if (document.getElementById('aCmdStarbase')) {
+                    window.location.assign(`${window.location.origin}/starbase_trade.php`);
+                } else if (document.getElementById('aCmdBuilding')) {
+                    window.location.assign(`${window.location.origin}/building_trade.php`);
+                }
+            });
+
+            // Make sure there's something to display
+            if (container.innerHTML !== '') {
+                document.getElementById('commands_content').insertBefore(container, document.querySelector('#commands_content div').nextSibling);
+            }
+        }
+    }
+
+    addPlanetLinks(container) {
+        if (PardusOptionsUtility.getVariableValue('enable_ship_equipment', true)) {
+            container.innerHTML += '<a href="ship_equipment.php">Ship Equipment</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_trade_with_planet_or_sb', true)) {
+            container.innerHTML += '<a href="planet_trade.php">Trade with planet</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_bulletin_board', true)) {
+            container.innerHTML += '<a href="bulletin_board.php">Bulletin Board</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_bounty_board', true)) {
+            container.innerHTML += '<a href="bounties.php">Bounty Board</a><br>';
+        }
+
+        // Insert a clean break
+        if ((
+            PardusOptionsUtility.getVariableValue('enable_ship_equipment', true) ||
+            PardusOptionsUtility.getVariableValue('enable_trade_with_planet_or_sb', true) ||
+            PardusOptionsUtility.getVariableValue('enable_bulletin_board', true) ||
+            PardusOptionsUtility.getVariableValue('enable_bounty_board', true)
+        ) && (
+            PardusOptionsUtility.getVariableValue('enable_shipyard', true) ||
+            PardusOptionsUtility.getVariableValue('enable_trade_with_blackmarket', true) ||
+            PardusOptionsUtility.getVariableValue('enable_hack_faction_database', true)
+        )) {
+            container.innerHTML += '<br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_shipyard', true)) {
+            container.innerHTML += '<a href="shipyard.php">Shipyard</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_trade_with_blackmarket', true)) {
+            container.innerHTML += '<a href="blackmarket.php">Black Market</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_hack_faction_database', true)) {
+            container.innerHTML += '<a href="hack.php">Hack faction database</a><br>';
+        }
+    }
+
+    addStarbaseLinks(container) {
+        if (PardusOptionsUtility.getVariableValue('enable_ship_equipment', true)) {
+            container.innerHTML += '<a href="ship_equipment.php">Ship Equipment</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_trade_with_planet_or_sb', true)) {
+            container.innerHTML += '<a href="starbase_trade.php">Trade with starbase</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_bulletin_board', true)) {
+            container.innerHTML += '<a href="bulletin_board.php">Bulletin Board</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_bounty_board', true)) {
+            container.innerHTML += '<a href="bounties.php">Bounty Board</a><br>';
+        }
+
+        // Insert a clean break
+        if ((
+            PardusOptionsUtility.getVariableValue('enable_ship_equipment', true) ||
+            PardusOptionsUtility.getVariableValue('enable_trade_with_planet_or_sb', true) ||
+            PardusOptionsUtility.getVariableValue('enable_bulletin_board', true) ||
+            PardusOptionsUtility.getVariableValue('enable_bounty_board', true)
+        ) && (
+            PardusOptionsUtility.getVariableValue('enable_shipyard', true) ||
+            PardusOptionsUtility.getVariableValue('enable_trade_with_blackmarket', true) ||
+            PardusOptionsUtility.getVariableValue('enable_hack_faction_database', true) ||
+            PardusOptionsUtility.getVariableValue('enable_transfer_credits', true)
+        )) {
+            container.innerHTML += '<br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_shipyard', true)) {
+            container.innerHTML += '<a href="shipyard.php">Shipyard</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_trade_with_blackmarket', true)) {
+            container.innerHTML += '<a href="blackmarket.php">Black Market</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_hack_faction_database', true)) {
+            container.innerHTML += '<a href="hack.php">Hack faction database</a><br>';
+        }
+
+        if (PardusOptionsUtility.getVariableValue('enable_transfer_credits', true)) {
+            container.innerHTML += '<a href="hack.php">Transfer Credits</a><br>';
+        }
+    }
+
+    addBuildingLinks(container) {
+        const building_image = document.querySelector('#stdCommand img').src;
+
+        if (PardusOptionsUtility.getVariableValue('enable_trade_with_building', true)) {
+            container.innerHTML += '<a href="building_trade.php">Trade</a><br>';
+        }
+        
+        if (PardusOptionsUtility.getVariableValue('enable_hack_building', true)) {
+            container.innerHTML += '<a href="hack.php">Hack information</a><br>';
+        }
+        
+        if (PardusOptionsUtility.getVariableValue('enable_recharge_shield', true) && building_image.split('/')[building_image.split('/').length - 1] == 'energy_well.png') {
+            container.innerHTML += '<a href="energy_well.php">Recharge shield</a><br>';
+        }
+    }
+}
+
+;// ./src/classes/main/other-ships.js
+
+
+class other_ships_OtherShips {
+    constructor() {
+        if (PardusOptionsUtility.getVariableValue('enable_ship_overview', true)) {
+            this.addShipLinks();
+        }
+    }
+
+    addPlayerLink(player, player_id) {
+        const player_name = player.innerHTML.replace("<font color=", "").replace("</font>", "").replace('"#bb0000"',"").replace('"#BB0000"',"").replace('"#FFCC00"',"").replace(">", "");
+
+        let alliance_name = '';
+
+        let container = document.getElementById(`quickcommands-player-link-${player_id}`);
+        let recreate = false;
+
+        if (!container) {
+            recreate = true;
+        }
+
+        if (recreate) {
+            if (player.nextSibling && player.nextSibling.nextSibling.firstChild.firstChild) {
+                alliance_name = player.nextSibling.nextSibling.firstChild.firstChild.innerHTML.replace('<font color="#a1a1af">', '').replace('</font>', '');
+            }
+
+            container = document.createElement('font');
+            container.setAttribute('id', `quickcommands-player-link-${player_id}`);
+            container.setAttribute('size', '1');
+
+            const player_options = [];
+            const alliance_options = [];
+
+            if (PardusOptionsUtility.getVariableValue('enable_player_message', true)) {
+                player_options.push(`<a href='javascript:sendmsg("${player_name}");'>Msg</a>`);
+            }
+
+            if (PardusOptionsUtility.getVariableValue('enable_player_trade', true)) {
+                player_options.push(`<a href='ship2ship_transfer.php?playerid=${player_id}'>Trade</a>`);
+            }
+
+            if (PardusOptionsUtility.getVariableValue('enable_player_attack', true) && !(document.getElementById('aCmdPlanet') || document.getElementById('aCmdStarbase'))) {
+                player_options.push(`<a href='ship2ship_combat.php?playerid=${player_id}'>Attack</a>`);
+            }
+
+            if (PardusOptionsUtility.getVariableValue('enable_player_news', true)) {
+                alliance_options.push(`<a href='news.php?s=${player_name}&searchtype=pilot&search=Search' target='_blank'>News</a>`);
+            }
+
+            if (PardusOptionsUtility.getVariableValue('enable_alliance_news', true) && alliance_name != 'No alliance participation') {
+                alliance_options.push(`<a href='news.php?s=${alliance_name}&searchtype=alliance&search=Search' target='_blank'>Ally News</a>`);
+            }
+
+            if ((player_options.length > 0 || alliance_options > 0) && player.nextSibling) {
+
+                container.innerHTML += '<br>';
+
+                if (player_options.length > 0) {
+                    container.innerHTML += player_options.join('&nbsp;|&nbsp;');
+                    container.innerHTML += '<br>';
+                }
+
+                if (alliance_options.length > 0) {
+                    container.innerHTML += alliance_options.join('&nbsp;|&nbsp;');
+                    container.innerHTML += '<br>';
+                }
+
+                player.parentNode.insertBefore(container, player.nextSibling.nextSibling.nextSibling);
+            }
+        }
+    }
+
+    addSquadLink(squad, squad_id) {
+
+        let container = document.getElementById(`quickcommands-squad-link-${squad_id}`);
+        let recreate = false;
+
+        if (!container) {
+            recreate = true;
+        }
+
+        if (recreate) {
+            container = document.createElement('font');
+            container.setAttribute('id', `quickcommands-squad-link-${squad_id}`);
+            container.setAttribute('size', '1');
+
+            const squad_options = [];
+
+            if (PardusOptionsUtility.getVariableValue('enable_squad_command', true)) {
+                squad_options.push(`<a href='squad_main.php?squadid=${squad_id}'>Command</a>`);
+            }
+
+            if (PardusOptionsUtility.getVariableValue('enable_squad_supply', true)) {
+                squad_options.push(`<a href='supply_squad.php?squadid=${squad_id}'>Supply</a>`);
+            }
+
+            if (squad_options.length > 0) {
+                container.innerHTML += '<br>';
+                container.innerHTML += squad_options.join('&nbsp;|&nbsp;');
+                container.innerHTML += '<br>';
+                squad.parentNode.appendChild(container);
+            }
+        }
+    }
+
+    addShipLinks() {
+        const otherships_content = document.getElementById('otherships_content');
+        const ship_links = otherships_content.getElementsByTagName('a');
+
+        for (const ship of ship_links) {
+
+            let regex = /main\.php\?scan_details=(\d*)&scan_type=(player|squadron)/;
+
+            if (ship.getAttribute('href').search(/main.php[?]scan_details/i) == -1) {
+                if (ship.getAttribute('href').search(/javascript:scanid/i) == -1) {
+                    continue;
+                }
+
+                regex = /javascript:scanId\((\d*), \"(player|squadron)\"\)/;
+            }
+
+            const match = ship.getAttribute('href').match(regex);
+
+            if (match) {
+                const ship_id = match[1];
+                const ship_type = match[2];
+
+                switch (ship_type) {
+                    case 'player':
+                        this.addPlayerLink(ship, ship_id);
+                        break;
+                    case 'squadron':
+                        this.addSquadLink(ship, ship_id);
+                        break;
+                    default:
+                        console.log(`No handling found for ship type '${ship_type}'`);
+                }
+            }
+        }
+    }
+}
+
+;// ./src/classes/utility/mapper.js
+
+
+
+String.prototype.capitalize = function() {
+    return this.charAt(0).toUpperCase() + this.slice(1);
+};
+
+class Mapper {
+    static getMappers() {
+        return [
+            {
+                text: 'Zaqwer\'s Mapper (Hosted by Tightwad)',
+                value: 'zaqwer',
+                universe: 'https://pardusmapper.com/<Universe>/',
+                sector: 'https://pardusmapper.com/<Universe>/<Sector>',
+                default: true,
+            },
+            {
+                text: 'Pardus\' Map Pack Equipment',
+                value: 'pardus',
+                universe: '/overview_map.php?slim=y',
+                sector: '/overview_map.php?slim=y',
+            },
+            {
+                text: 'X-COM Mapper',
+                value: 'xcom',
+                universe: 'http://map.xcom-alliance.info/',
+                sector: 'http://map.xcom-alliance.info/<Sector>.html',
+            },
+            {
+                text: 'Butterfat',
+                value: 'butterfat',
+                universe: 'http://pardus.butterfat.net/pardusmapper/maps/<universe>/universe.html',
+                sector: 'http://pardus.butterfat.net/pardusmapper/maps/<universe>/<SectorNoSpace>.html'
+            }
+        ];
+    }
+
+    static getMapper(mapperToFetch) {
+        for (const mapper of this.getMappers()) {
+            if (mapper.value === mapperToFetch) {
+                return mapper;
+            }
+        }
+        throw new Error(`Mapper ${mapperToFetch} not found!`);
+    }
+
+    static getMapperToUse() {
+        const mapperToUse = PardusOptionsUtility.getVariableValue('mapper_to_use', 'zaqwer');
+        return this.getMapper(mapperToUse);
+    }
+
+    static getSectorUrl(sector) {
+
+        const mapperSector = this.getMapperToUse().sector
+            .replace(/<universe>/, PardusLibrary.getUniverse().toLowerCase())
+            .replace(/<Universe>/, PardusLibrary.getUniverse().capitalize())
+            .replace(/<UNIVERSE>/, PardusLibrary.getUniverse().toUpperCase())
+            .replace(/<sector>/, sector.toLowerCase())
+            .replace(/<Sector>/, sector.capitalize())
+            .replace(/<SectorNoSpace>/, sector.capitalize().replace(' ', ''))
+            .replace(/<SECTOR>/, sector.toUpperCase());
+
+        return mapperSector;
+        /* Pardus' built-in map with either the Map Pack 1 or Map Pack 2 special equipment installed */
+        /*
+        if (false) {
+            return '/overview_map.php?slim=y';
+        }
+
+        // Default
+        return `https://pardusmapper.com/${PardusLibrary.getUniverse().capitalize()}/${sector}`;
+        */
+    }
+
+    static getUniverseUrl() {
+        /* Pardus' built-in map with either the Map Pack 1 or Map Pack 2 special equipment installed */
+        /*if (false) {
+            return '/overview_map.php?slim=y';
+        }
+
+        return `https://pardusmapper.com/${PardusLibrary.getUniverse().capitalize()}/`;*/
+        const mapperUniverse = this.getMapperToUse().universe
+            .replace(/<universe>/, PardusLibrary.getUniverse().toLowerCase())
+            .replace(/<Universe>/, PardusLibrary.getUniverse().capitalize())
+            .replace(/<UNIVERSE>/, PardusLibrary.getUniverse().toUpperCase());
+
+        return mapperUniverse;
+    }
+}
+
+;// ./src/classes/main/status-box.js
+
+
+
+class StatusBox {
+    constructor() {
+        if (PardusOptionsUtility.getVariableValue('enable_sector_map_link', true)) {
+            this.addSectorMapLink();
+            this.addCoordsMapLink();
+        }
+    }
+
+    addSectorMapLink() {
+        const sector_span = document.getElementById('sector');
+        const parent_node = sector_span.parentNode;
+
+        let sector_a = document.getElementById('quickcommands-sector-map-link');
+        let recreate = false;
+
+        if (!sector_a) {
+            recreate = true;
+
+            sector_a = document.createElement('a');
+            sector_a.setAttribute('id', 'quickcommands-sector-map-link');
+        }
+
+        sector_a.href = Mapper.getSectorUrl(sector_span.innerHTML);
+        sector_a.target = '_blank';
+    
+        if (recreate) {
+            sector_a.appendChild(sector_span);
+            parent_node.appendChild(sector_a);
+        }
+    }
+
+    addCoordsMapLink() {
+        const coords_span = document.getElementById('coords');
+        const parent_node = coords_span.parentNode;
+
+        let coords_a = document.getElementById('quickcommands-coords-map-link');
+        let recreate = false;
+
+        if (!coords_a) {
+            recreate = true;
+
+            coords_a = document.createElement('a');
+            coords_a.setAttribute('id', 'quickcommands-coords-map-link');
+        }
+
+        coords_a.href = Mapper.getSectorUrl(document.getElementById('sector').innerHTML);
+        coords_a.target = '_blank';
+
+        if (recreate) {
+            coords_a.appendChild(coords_span);
+            parent_node.appendChild(coords_a);
+        }
+    }
+
+    addCheckClusterProtection() {
+
+    }
+}
+
+;// ./src/classes/main/index.js
+
+
+
+
+;// ./src/classes/pages/main.js
+
+
+class main_Main {
+    constructor(main) {
+        main.nav.addAfterRefreshHook(() => {
+            new StatusBox();
+            new CommandsBox();
+        });
+
+        main.otherShips.addAfterRefreshHook(() => {
+            new other_ships_OtherShips();
+        });
+
+        new StatusBox();
+        new CommandsBox();
+        new other_ships_OtherShips();
+    }
+}
+
+/*
+
+//updateShip
+    var shipCookie = readCookie('ship');
+    if(shipCookie != null)  shipCookie = shipCookie.split("|");
+    function do_updateShip(){
+        for(var i = 0; i < document.getElementById("yourship_content").getElementsByTagName('a').length; i++)
+        {
+            var a = document.getElementById("yourship_content").getElementsByTagName('a')[i]
+            if((a.getAttribute('href').search(/main.php[?]ccc=1/i) != -1 || a.getAttribute('href').indexOf("cloakingchance()") != -1 )&& a.innerHTML.indexOf('class="nf"') == -1 && a.innerHTML.indexOf("class='nf'") == -1)
+            {
+                var child = document.createElement("div");
+                
+                child.setAttribute("style", "position:relative; top:6px; margin-left: 12px; margin-top: 5px; margin-bottom: 7px;");
+                if(enableShipOverview)  child.innerHTML = child.innerHTML + "<a href='overview_ship.php'>Ship Overview</a>";
+                if(enableShipName && shipCookie != null && shipCookie[0] != "")  child.innerHTML = child.innerHTML + "<br>Name: " + shipCookie[0];
+                if(enableShipType && shipCookie != null && shipCookie[1] != "")  child.innerHTML = child.innerHTML + "<br>Type: " + shipCookie[1];
+                if(enableShipImage && shipCookie != null && shipCookie[2] != "")  child.innerHTML = child.innerHTML + "<br><center><img src='" + shipCookie[2] + "'></center>";
+                if(enableShipOverview || enableShipName || enableShipType || enableShipImage) { document.getElementById("yourship_content").insertBefore(child,document.getElementById("yourship_content").firstChild); i++; 
+                }
+            }
+        }
+    }
+    
+    do_updateShip();
+    var local_updateShip = unsafeWindow.updateShip;
+    if(local_updateShip){
+        unsafeWindow.updateShip = function(result){
+            local_updateShip(result);
+            do_updateShip();
+        }
+    }
+
+*/
+;// ./src/classes/pages/msgframe.js
+/* global userid */
+
+
+
+class msgframe_Msgframe {
+    constructor() {
+        if (PardusOptionsUtility.getVariableValue('enable_account_name', true)) {
+            this.addAccountName();
+        }
+        if (PardusOptionsUtility.getVariableValue('enable_edit_profile', true)) {
+            this.addEditProfile();
+        }
+        if (PardusOptionsUtility.getVariableValue('enable_custom_links', true)) {
+            this.addCustomLinks();
+        }
+    }
+
+    addAccountName() {
+        const container = document.createElement('span');
+        const image_element = document.getElementsByTagName('img')[0];
+        const username = image_element.getAttribute('title').replace('Artemis: ', '').replace('Orion: ', '').replace('Pegasus: ', '').replace(/^\s+|\s+$/g, '');
+        container.innerHTML = ` ${username}`;
+        image_element.parentNode.insertBefore(container, image_element.nextSibling);
+    }
+
+    addEditProfile() {
+        const logout_element = document.querySelector('a[href*="logout"]');
+        const container = document.createElement('span');
+        container.innerHTML = `<a href='profile.php?action=edit&userid=${userid}' target='main'>Edit Profile</a> | `;
+        logout_element.parentNode.insertBefore(container, logout_element);
+    }
+
+    addCustomLinks() {
+        const target_element = document.querySelector('td[align="right"] b');
+        const container = document.createElement('div');
+        const links = [];
+        if (PardusOptionsUtility.getVariableValue('enable_mapper_link', true)) {
+            links.push(`<a href="${Mapper.getUniverseUrl()}" target="_blank">Mapper</a>`);
+        }
+        if (PardusOptionsUtility.getVariableValue('enable_upgrades_link', true)) {
+            links.push('<a href="https://www.xcom-alliance.info/buildingtools/building_upgrade.html" target="_blank">Upgrades</a>');
+        }
+        if (PardusOptionsUtility.getVariableValue('enable_maxes_link', true)) {
+            links.push('<a href="https://www.xcom-alliance.info/buildingtools/maxes/" target="_blank">Maxes</a>');
+        }
+        if (PardusOptionsUtility.getVariableValue('enable_ap_calculator_link', true)) {
+            links.push('<a href="https://tro.xcom-alliance.info/path_calculator.html" target="_blank">AP Calculator</a>');
+        }
+        if (PardusOptionsUtility.getVariableValue('enable_fsc_link', true)) {
+            links.push('<a href="https://www.xcom-alliance.info/fsc/" target="_blank">FSC</a>');
+        }
+
+        container.innerHTML = links.join('&nbsp;|&nbsp;');
+        target_element.appendChild(container);
+    }
+}
+
+;// ./src/classes/pages/options.js
+
+
+
+class Options {
+    constructor() {
+        const quickCommandsOptionsTab = PardusOptions.addTab({
+            heading: 'Quick Commands',
+            id: 'quick-commands-options',
+            defaultLabel: 'General Options',
+        });
+
+        const navSubtab = quickCommandsOptionsTab.addSubTab({
+            label: 'Nav Screen',
+        });
+
+        const messageFrameSubtab = quickCommandsOptionsTab.addSubTab({
+            label: 'Status Bar',
+        });
+
+        this.description(quickCommandsOptionsTab);
+        this.navOptions(navSubtab);
+        this.mapperOptions(quickCommandsOptionsTab);
+        this.msgFrameOptions(messageFrameSubtab);
+    }
+
+    navOptions(subtab) {
+        const nav_options_box = subtab.addBox({
+            heading: 'Nav',
+            description: 'These options control the quick links on the Nav screen.',
+        });
+
+        /*
+         *  Status box
+         */
+        const status_box = subtab.addBox({
+            heading: 'Status Box',
+            description: 'These options control the quick links in the \'Status\' box in the top-left corner of the Nav screen.',
+        });
+
+        status_box.addBooleanOption({
+            variable: 'enable_sector_map_link',
+            description: 'Enable link from sector to mapper',
+            defaultValue: true,
+        });
+
+        /*
+         *  Commands box
+         */
+        const commands_box = subtab.addBox({
+            heading: 'Commands Box',
+            description: 'These options control the quick links in the \'Commands\' box on the left side of the Nav screen.',
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_ship_equipment',
+            description: 'Enable \'Ship Equipment\' link',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_trade_with_planet_or_sb',
+            description: 'Enable \'Trade With Planet/Starbase\' link',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_bulletin_board',
+            description: 'Enable \'Bulletin Board\' link',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_bounty_board',
+            description: 'Enable \'Bounty Board\' link',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_shipyard',
+            description: 'Enable \'Ship Yard\' link',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_trade_with_blackmarket',
+            description: 'Enable \'Black Market\' link',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_hack_faction_database',
+            description: 'Enable \'Hack\' link',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_transfer_credits',
+            description: 'Enable \'Transfer Credits\' link',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_trade_with_building',
+            description: 'Enable \'Trade\' link for buildings',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_hack_building',
+            description: 'Enable \'Hack information\' link for buildings',
+            defaultValue: true
+        });
+
+        commands_box.addBooleanOption({
+            variable: 'enable_recharge_shield',
+            description: 'Enable \'Recharge Shield\' link for Energy Wells',
+            defaultValue: true
+        });
+
+
+        /*
+         *  Ship box
+         */
+        const ship_box = subtab.addBox({
+            heading: 'Ship Box',
+            description: 'These options control the quick links in the \'Ship\' box in the bottom-left corner of the Nav screen.',
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_ship_overview',
+            description: 'Enable \'Ship Overview\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_player_message',
+            description: 'Enable \'Message\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_player_trade',
+            description: 'Enable \'Trade\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_player_attack',
+            description: 'Enable \'Attack\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_player_news',
+            description: 'Enable \'News\' link',
+            defaultValue: true
+        });
+
+        ship_box.addBooleanOption({
+            variable: 'enable_alliance_news',
+            description: 'Enable \'Alliance News\' link',
+            defaultValue: true
+        });
+
+        /*
+         *  Commands box
+         */
+        const keyboard_options = subtab.addBox({
+            heading: 'Keyboard Options',
+            description: 'These options control the key presses options to quickly perform specific actions.',
+        });
+
+        keyboard_options.addKeyDownOption({
+            variable: 'enter_tradescreen_key',
+            description: 'Enter building/planet/SB trade screen',
+            defaultValue: {
+                code: 84,
+                key: "KeyT",
+                description: "t"
+            },
+        });
+
+    }
+
+    description(subtab) {
+        const description_box = subtab.addBox({
+            heading: 'Description',
+            description: 'These are the options for the Pardus Quick Commands script.',
+        });
+    }
+
+    mapperOptions(subtab) {
+        const mapper_box = subtab.addBox({
+            heading: 'Mapper',
+            description: 'These are the options for the mapper that is used in multiple places, such as the commands box on the nav screen, and the mapper link in the status bar.',
+        });
+
+        mapper_box.addSelectOption({
+            variable: 'mapper_to_use',
+            description: 'Mapper to use',
+            options: Mapper.getMappers(),
+        });
+    }
+
+    msgFrameOptions(subtab) {
+        const msg_frame_general_box = subtab.addBoxLeft({
+            heading: 'Status Bar',
+            description: 'These are the options for the status bar at the top of the screen.'
+        });
+
+        msg_frame_general_box.addBooleanOption({
+            variable: 'enable_account_name',
+            description: 'Enable account name',
+            defaultValue: true,
+        });
+
+        msg_frame_general_box.addBooleanOption({
+            variable: 'enable_edit_profile',
+            description: 'Enable \'Edit Profile\'',
+            defaultValue: true,
+        }); 
+
+        msg_frame_general_box.addBooleanOption({
+            variable: 'enable_custom_links',
+            description: 'Enable custom links',
+            defaultValue: true,
+        });
+
+        const custom_links_options_box = subtab.addBoxRight({
+            heading: 'Custom Links',
+            description: 'These are the options for the individual custom links displayed',
+        });
+
+        custom_links_options_box.addBooleanOption({
+            variable: 'enable_mapper_link',
+            description: 'Enable \'Mapper\' link',
+            defaultValue: true,
+            info: {
+                title: 'Mapper Link',
+                description: 'This uses the mapper selected in the \'General Options\' subtab.'
+            }
+        });
+
+        custom_links_options_box.addBooleanOption({
+            variable: 'enable_upgrades_link',
+            description: 'Enable \'Upgrades\' link',
+            defaultValue: true,
+        });
+
+        custom_links_options_box.addBooleanOption({
+            variable: 'enable_maxes_link',
+            description: 'Enable \'Maxes\' link',
+            defaultValue: true,
+        });
+
+        custom_links_options_box.addBooleanOption({
+            variable: 'enable_ap_calculator_link',
+            description: 'Enable \'AP Calculator\' link',
+            defaultValue: true,
+        });
+
+        custom_links_options_box.addBooleanOption({
+            variable: 'enable_fsc_link',
+            description: 'Enable \'FSC\' link',
+            defaultValue: true,
+        });
+    }
+}
+;// ./src/classes/pages/index.js
+
+
+
+
+;// ./src/index.js
+
+
+
+class PardusQuickCommands {
+    constructor() {
+        const pardus = new PardusLibrary();
+
+        switch (document.location.pathname) {
+            case '/main.php':
+                new main_Main(pardus.currentPage);
+                break;
+            case '/options.php':
+                new Options();
+                break;
+            case '/msgframe.php':
+                new msgframe_Msgframe();
+                break;
+            default:
+                console.log(`Page '${document.location.pathname}' not implemented!`);
+        }
+    }
+}
+
+__webpack_exports__ = __webpack_exports__["default"];
+/******/ 	return __webpack_exports__;
+/******/ })()
+;
+});

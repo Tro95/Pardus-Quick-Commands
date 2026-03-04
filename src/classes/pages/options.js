@@ -1,8 +1,29 @@
-/* env greasemonkey, es6 */
-/* global PardusOptions */
+import { PardusOptions, PardusOptionsUtility } from 'pardus-options-library';
+import Mapper from '../utility/mapper.js';
 
-class QuickCommandsOptionsPage {
-    static navOptions(subtab) {
+export default class Options {
+    constructor() {
+        const quickCommandsOptionsTab = PardusOptions.addTab({
+            heading: 'Quick Commands',
+            id: 'quick-commands-options',
+            defaultLabel: 'General Options',
+        });
+
+        const navSubtab = quickCommandsOptionsTab.addSubTab({
+            label: 'Nav Screen',
+        });
+
+        const messageFrameSubtab = quickCommandsOptionsTab.addSubTab({
+            label: 'Status Bar',
+        });
+
+        this.description(quickCommandsOptionsTab);
+        this.navOptions(navSubtab);
+        this.mapperOptions(quickCommandsOptionsTab);
+        this.msgFrameOptions(messageFrameSubtab);
+    }
+
+    navOptions(subtab) {
         const nav_options_box = subtab.addBox({
             heading: 'Nav',
             description: 'These options control the quick links on the Nav screen.',
@@ -161,14 +182,14 @@ class QuickCommandsOptionsPage {
 
     }
 
-    static description(subtab) {
+    description(subtab) {
         const description_box = subtab.addBox({
             heading: 'Description',
             description: 'These are the options for the Pardus Quick Commands script.',
         });
     }
 
-    static mapperOptions(subtab) {
+    mapperOptions(subtab) {
         const mapper_box = subtab.addBox({
             heading: 'Mapper',
             description: 'These are the options for the mapper that is used in multiple places, such as the commands box on the nav screen, and the mapper link in the status bar.',
@@ -177,11 +198,11 @@ class QuickCommandsOptionsPage {
         mapper_box.addSelectOption({
             variable: 'mapper_to_use',
             description: 'Mapper to use',
-            options: QuickCommandsMapper.getMappers(),
+            options: Mapper.getMappers(),
         });
     }
 
-    static msgFrameOptions(subtab) {
+    msgFrameOptions(subtab) {
         const msg_frame_general_box = subtab.addBoxLeft({
             heading: 'Status Bar',
             description: 'These are the options for the status bar at the top of the screen.'
@@ -243,26 +264,5 @@ class QuickCommandsOptionsPage {
             description: 'Enable \'FSC\' link',
             defaultValue: true,
         });
-    }
-
-    static run() {
-        const quick_commands_options_tab = PardusOptions.addTab({
-            heading: 'Quick Commands',
-            id: 'quick-commands-options',
-            defaultLabel: 'General Options',
-        });
-
-        const nav_subtab = quick_commands_options_tab.addSubTab({
-            label: 'Nav Screen',
-        });
-
-        const message_frame_subtab = quick_commands_options_tab.addSubTab({
-            label: 'Status Bar',
-        });
-
-        this.description(quick_commands_options_tab);
-        this.navOptions(nav_subtab);
-        this.mapperOptions(quick_commands_options_tab);
-        this.msgFrameOptions(message_frame_subtab);
     }
 }
